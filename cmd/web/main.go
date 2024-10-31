@@ -226,12 +226,18 @@ func main() {
 				slog.String("User-Agent", r.Header["User-Agent"][0]),
 			)
 
+			_, err := tx.NewInsert().Model(&nsa.User{Token: token}).Ignore().Exec(ctx)
+			if err != nil {
+				Error(w, err)
+				return
+			}
+
 			data := nsa.UserTopic{
 				UserToken: token,
 				TopicID:   b.TopicID,
 			}
 
-			_, err := tx.NewInsert().Model(&data).Ignore().Exec(ctx)
+			_, err = tx.NewInsert().Model(&data).Ignore().Exec(ctx)
 			if err != nil {
 				Error(w, err)
 				return
