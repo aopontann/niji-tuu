@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,6 +15,7 @@ import (
 	"github.com/avast/retry-go/v4"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/rs/cors"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 
@@ -39,7 +41,8 @@ func main() {
 	sqldb := stdlib.OpenDB(*config)
 	db := bun.NewDB(sqldb, pgdialect.New())
 
-	http.HandleFunc("/api/song", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/song", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-Type", "application/json")
 		if len(r.Header["Authorization"]) == 0 {
 			http.Error(w, "NG", http.StatusBadRequest)
@@ -50,6 +53,10 @@ func main() {
 		var check bool
 		if r.Method == http.MethodGet {
 			err := db.NewSelect().Column("song").Table("users").Where("token = ?", token).Scan(ctx, &check)
+			if err == sql.ErrNoRows {
+				http.Error(w, fmt.Sprintf(`{"status":%s}`, err), http.StatusNotFound)
+				return
+			}
 			if err != nil {
 				http.Error(w, fmt.Sprintf(`{"status":%s}`, err), http.StatusInternalServerError)
 				return
@@ -90,7 +97,7 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/api/info", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/info", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-Type", "application/json")
 		if len(r.Header["Authorization"]) == 0 {
 			http.Error(w, "NG", http.StatusBadRequest)
@@ -101,6 +108,10 @@ func main() {
 		var check bool
 		if r.Method == http.MethodGet {
 			err := db.NewSelect().Column("info").Table("users").Where("token = ?", token).Scan(ctx, &check)
+			if err == sql.ErrNoRows {
+				http.Error(w, fmt.Sprintf(`{"status":%s}`, err), http.StatusNotFound)
+				return
+			}
 			if err != nil {
 				slog.Info("POST",
 					slog.String("severity", "INFO"),
@@ -145,7 +156,7 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/api/topic", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/topic", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-Type", "application/json")
 		if len(r.Header["Authorization"]) == 0 {
 			http.Error(w, "NG", http.StatusBadRequest)
@@ -165,6 +176,10 @@ func main() {
 				http.Error(w, fmt.Sprintf(`{"status":%s}`, err), http.StatusInternalServerError)
 				return
 			}
+			if len(topics) == 0 {
+				http.Error(w, fmt.Sprintf(`{"status":%s}`, err), http.StatusNotFound)
+				return
+			}
 			s, _ := json.Marshal(topics)
 			w.Write(s)
 			return
@@ -178,6 +193,16 @@ func main() {
 				slog.String("message", err.Error()),
 			)
 			http.Error(w, "リクエストボディが不正です", http.StatusInternalServerError)
+			return
+		}
+
+		registerCount, err := db.NewSelect().Table("user_topics").Where("user_token = ?", token).Count(ctx)
+		if err != nil {
+			Error(w, err)
+			return
+		}
+		if registerCount >= 5 {
+			http.Error(w, "キーワードは5個までしか追加できません", http.StatusBadRequest)
 			return
 		}
 
@@ -206,7 +231,6 @@ func main() {
 				TopicID:   b.TopicID,
 			}
 
-			// TODO:キーワードは5個まで登録可にする
 			_, err := tx.NewInsert().Model(&data).Ignore().Exec(ctx)
 			if err != nil {
 				Error(w, err)
@@ -253,7 +277,7 @@ func main() {
 		w.Write([]byte("OK!!"))
 	})
 
-	http.HandleFunc("/api/topic/list", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/topic/list", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-Type", "application/json")
 
 		var topics []nsa.Topic
@@ -270,13 +294,53 @@ func main() {
 
 	})
 
+	mux.HandleFunc("/api/unsubscription", func(w http.ResponseWriter, r *http.Request) {
+		if len(r.Header["Authorization"]) == 0 {
+			http.Error(w, "NG", http.StatusBadRequest)
+			return
+		}
+		token := strings.Split(r.Header["Authorization"][0], " ")[1]
+		if r.Method == http.MethodPost {
+			tx, err := db.Begin()
+			if err != nil {
+				Error(w, err)
+				return
+			}
+
+			_, err = tx.NewDelete().Model((*nsa.UserTopic)(nil)).Where("user_token = ?", token).Exec(ctx)
+			if err != nil {
+				Error(w, err)
+				return
+			}
+
+			_, err = tx.NewDelete().Model((*nsa.User)(nil)).Where("token = ?", token).Exec(ctx)
+			if err != nil {
+				Error(w, err)
+				return
+			}
+
+			err = retry.Do(
+				tx.Commit,
+				retry.Attempts(3),
+				retry.Delay(2*time.Second),
+			)
+			if err != nil {
+				Error(w, err)
+				return
+			}
+			w.Write([]byte("OK!!"))
+		}
+	})
+	// CORS レスポンスヘッダーの追加
+	c := cors.AllowAll()
+	handler := c.Handler(mux)
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
-	
+
 	log.Printf("Listening on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal(err)
 	}
 }

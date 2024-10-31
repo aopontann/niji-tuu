@@ -7,6 +7,7 @@
 
   const messaging = getMessaging();
   const deleteEle = document.getElementById("delete") as HTMLElement;
+  const topicResiterListEle = document.getElementById("topic-register-list");
 
   // 通知解除ボタン
   deleteEle.addEventListener("click", async () => {
@@ -23,15 +24,24 @@
       // ローディング解除
       deleteEle.classList.remove("is-loading");
     }
+    console.log('deleted')
 
-    const res = await fcmToken("DELETE", currentToken);
+    const res = await fetch(`${import.meta.env.PUBLIC_BASE_URL}/api/unsubscription`, {
+      method: "POST",
+      cache: "no-cache",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer: ${currentToken}`,
+      }
+    });
     if (!res.ok) {
       window.alert("トークンの削除に失敗しました");
       // ローディング解除
       deleteEle.classList.remove("is-loading");
     } else {
-      // document.getElementById("toast-success").style.display = "block"
-      // document.getElementById("toast-success").style.visibility = "visible";
+      while (topicResiterListEle && topicResiterListEle.childElementCount > 1) {
+        topicResiterListEle.removeChild(topicResiterListEle.firstChild as any)
+      }
     }
 
     // ローディング解除
@@ -48,10 +58,10 @@
 
     // 設定初期化
     const songEle = document.getElementById("checkbox-song") as HTMLElement;
-    const keywordEle = document.getElementById("checkbox-keyword") as HTMLElement;
+    const infoEle = document.getElementById("checkbox-info") as HTMLElement;
     songEle.checked = false;
     window.localStorage.setItem("checkbox-song", "false")
-    keywordEle.checked = false;
-    window.localStorage.setItem("checkbox-keyword", "false")
+    infoEle.checked = false;
+    window.localStorage.setItem("checkbox-info", "false")
   });
 </script>

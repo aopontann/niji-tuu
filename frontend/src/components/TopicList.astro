@@ -1,0 +1,23 @@
+<div id="modal-topic-list" class="modal">
+  <div class="modal-background"></div>
+  <div class="modal-content">
+    <div class="box mr-3 ml-3">
+      <div class="tags" id="topic-list"></div>
+    </div>
+  </div>
+  <button id="close-modal-topic-list" class="modal-close is-large" aria-label="close"></button>
+</div>
+
+<script>
+  import { isIos, isInStandaloneMode } from "../scripts/main";
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const modalEle = document.getElementById("modal-topic-list") as HTMLElement;
+    
+  })
+
+  document.getElementById("close-modal-topic-list")?.addEventListener("click", () => {
+    document.getElementById("modal-topic-list")?.classList.remove("is-active")
+  })
+
+</script>

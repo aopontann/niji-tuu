@@ -1,0 +1,52 @@
+<label class="checkbox mb-2">
+  <!-- <input id="checkbox-keyword" type="checkbox" /> -->
+    追加したキーワードを含む動画が公開される5分前に通知を受け取る
+</label>
+<div id="topic-register-list" class="field is-grouped is-grouped-multiline"></div>
+
+<script>
+  import { toast } from "bulma-toast";
+  import { isSupported } from "firebase/messaging";
+  import { getFCMToken } from "../scripts/main";
+
+  const $iosModalEle = document.getElementById("ios-modal-js") as HTMLElement;
+  const keywordEle = document.getElementById("checkbox-keyword") as HTMLElement;
+  const modalTopicListEle = document.getElementById("modal-topic-list") as HTMLElement;
+
+  keywordEle.addEventListener("click", async () => {
+    if (!await isSupported()) {
+      $iosModalEle.classList.add("is-active");
+      return
+    }
+
+    const currentToken = await getFCMToken();
+    if (currentToken == "") {
+      console.log("none")
+      return;
+    }
+
+    const res = await fetch(`${import.meta.env.PUBLIC_BASE_URL}/api/song`, {
+      method: "POST",
+      cache: "no-cache",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer: ${currentToken}`,
+      },
+      body: JSON.stringify({status: keywordEle.checked}), // 本体のデータ型は "Content-Type" ヘッダーと一致させる必要があります
+    });
+
+    if (!res.ok) {
+      window.alert("登録に失敗しました");
+    }
+
+    window.localStorage.setItem("checkbox-keyword", keywordEle.checked)
+
+    toast({
+      message: "登録成功",
+      type: "is-success",
+      pauseOnHover: true,
+      opacity: 5,
+      extraClasses: "mt-6"
+    });
+  });
+</script>
