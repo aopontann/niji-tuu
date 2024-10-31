@@ -49,7 +49,7 @@ type User struct {
 type Topic struct {
 	bun.BaseModel `bun:"table:topics"`
 
-	ID   string `bun:"id,type:varchar(20),pk"`
+	ID   string `bun:"id,type:int,pk"`
 	Name string `bun:"name,type:varchar(100)"`
 	// CreatedAt time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 	// UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`

@@ -31,7 +31,7 @@ CREATE TABLE "users" (
 );
 
 CREATE TABLE "topics" (
-	"id" varchar(100) NOT NULL,
+	"id" SERIAL NOT NULL,
 	"name" varchar(100) NOT NULL,
 	"created_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -51,7 +51,7 @@ CREATE TABLE "video_topics" (
 
 CREATE TABLE "user_topics" (
 	"user_token" varchar(1000),
-	"topic_id" varchar(100),
+	"topic_id" SERIAL,
 	"created_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY ("user_token", "topic_id"),
