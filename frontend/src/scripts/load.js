@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { fcmToken, firebaseConfig, vapidKey, createTagElement } from "./main";
-import { getMessaging, getToken } from "firebase/messaging";
+import { getMessaging, getToken, deleteToken } from "firebase/messaging";
 import { toast } from "bulma-toast";
 
 const songEle = document.getElementById("checkbox-song");
@@ -19,6 +19,8 @@ window.onload = async () => {
 
   // 既に購買済みか
   if (Notification.permission !== "granted") {
+    console.log("not granted")
+    modalLoadingEle.classList.remove("is-active");
     return
   }
 
@@ -133,6 +135,62 @@ window.onload = async () => {
     topicListEle.appendChild(topicEle)
   }
   // ------------------------------------------------------------------------------------------------- //
+
+  const deleteEle = document.getElementById("unsubscription");
+  deleteEle.addEventListener("click", async () => {
+    console.log("DELETE");
+    // ローディング表示
+    deleteEle.classList.add("is-loading");
+
+    const currentToken = await getToken(messaging, { vapidKey });
+
+    // FCMトークン削除
+    const deleted = await deleteToken(messaging);
+    if (!deleted) {
+      window.alert("トークンの削除に失敗しました");
+      // ローディング解除
+      deleteEle.classList.remove("is-loading");
+    }
+    console.log('deleted')
+
+    const res = await fetch(`${import.meta.env.PUBLIC_BASE_URL}/api/unsubscription`, {
+      method: "POST",
+      cache: "no-cache",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer: ${currentToken}`,
+      }
+    });
+    if (!res.ok) {
+      window.alert("トークンの削除に失敗しました");
+      // ローディング解除
+      deleteEle.classList.remove("is-loading");
+    } else {
+      while (topicResiterListEle && topicResiterListEle.childElementCount > 1) {
+        topicResiterListEle.removeChild(topicResiterListEle.firstChild)
+      }
+    }
+
+    // ローディング解除
+    deleteEle.classList.remove("is-loading");
+
+    toast({
+      message: "削除成功",
+      type: "is-success",
+      // dismissible: true,
+      pauseOnHover: true,
+      opacity: 5,
+      extraClasses: "mt-6"
+    });
+
+    // 設定初期化
+    const songEle = document.getElementById("checkbox-song");
+    const infoEle = document.getElementById("checkbox-info");
+    songEle.checked = false;
+    window.localStorage.setItem("checkbox-song", "false")
+    infoEle.checked = false;
+    window.localStorage.setItem("checkbox-info", "false")
+  });
 
   console.log('complated!!!')
   modalLoadingEle.classList.remove("is-active");
