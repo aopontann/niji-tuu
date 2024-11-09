@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log"
 	"log/slog"
 	"net/http"
@@ -15,7 +17,6 @@ import (
 	"github.com/avast/retry-go/v4"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/rs/cors"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 
@@ -29,6 +30,9 @@ type ReqBodyTopic struct {
 	TopicID string `json:"topic_id"`
 }
 
+//go:embed dist/*
+var dist embed.FS
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
@@ -41,8 +45,13 @@ func main() {
 	sqldb := stdlib.OpenDB(*config)
 	db := bun.NewDB(sqldb, pgdialect.New())
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/song", func(w http.ResponseWriter, r *http.Request) {
+	dist, err := fs.Sub(dist, "dist")
+	if err != nil {
+		panic(err)
+	}
+	http.Handle("/", http.FileServer(http.FS(dist)))
+
+	http.HandleFunc("/api/song", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-Type", "application/json")
 		if len(r.Header["Authorization"]) == 0 {
 			http.Error(w, "NG", http.StatusBadRequest)
@@ -97,7 +106,7 @@ func main() {
 		}
 	})
 
-	mux.HandleFunc("/api/info", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/info", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-Type", "application/json")
 		if len(r.Header["Authorization"]) == 0 {
 			http.Error(w, "NG", http.StatusBadRequest)
@@ -156,7 +165,7 @@ func main() {
 		}
 	})
 
-	mux.HandleFunc("/api/topic", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/topic", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-Type", "application/json")
 		if len(r.Header["Authorization"]) == 0 {
 			http.Error(w, "NG", http.StatusBadRequest)
@@ -223,6 +232,8 @@ func main() {
 			slog.Info("POST",
 				slog.String("severity", "INFO"),
 				slog.String("token", token),
+				slog.String("topic_id", b.TopicID),
+				slog.String("topic_name", topicName),
 				slog.String("User-Agent", r.Header["User-Agent"][0]),
 			)
 
@@ -283,7 +294,7 @@ func main() {
 		w.Write([]byte("OK!!"))
 	})
 
-	mux.HandleFunc("/api/topic/list", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/topic/list", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-Type", "application/json")
 
 		var topics []nsa.Topic
@@ -300,7 +311,7 @@ func main() {
 
 	})
 
-	mux.HandleFunc("/api/unsubscription", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/unsubscription", func(w http.ResponseWriter, r *http.Request) {
 		if len(r.Header["Authorization"]) == 0 {
 			http.Error(w, "NG", http.StatusBadRequest)
 			return
@@ -337,16 +348,14 @@ func main() {
 			w.Write([]byte("OK!!"))
 		}
 	})
-	// CORS レスポンスヘッダーの追加
-	c := cors.AllowAll()
-	handler := c.Handler(mux)
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
 	log.Printf("Listening on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
 	}
 }
