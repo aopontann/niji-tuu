@@ -262,7 +262,7 @@ func (j *Job) KeywordAnnounceJob() error {
 	if len(videos) == 0 {
 		return nil
 	}
-	
+
 	topics, err := j.db.getTopicsUserRegister()
 	if err != nil {
 		slog.Error("getTopicsUserRegister",
@@ -271,11 +271,18 @@ func (j *Job) KeywordAnnounceJob() error {
 		)
 		return err
 	}
+
 	for _, topic := range topics {
 		reg := ".*" + topic.Name + ".*"
 		for _, v := range videos {
 			// キーワードに一致した場合
 			if regexp.MustCompile(reg).Match([]byte(v.Title)) {
+				slog.Info("TopicNotification",
+					slog.String("severity", "INFO"),
+					slog.String("topic_name", topic.Name),
+					slog.String("video_id", v.ID),
+					slog.String("video_title", v.Title),
+				)
 				err := j.fcm.TopicNotification(topic.Name, &NotificationVideo{
 					ID:        v.ID,
 					Title:     v.Title,
