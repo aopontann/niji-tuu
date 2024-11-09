@@ -1,7 +1,6 @@
 package nsa
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
