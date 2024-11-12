@@ -57,6 +57,12 @@ export const getFCMToken = async () => {
   return "";
 };
 
+export const loadingStatus = {
+  song: false,
+  info: false,
+  topic: false
+}
+
 export const createTagElement = (topic, currentToken) => {
   const controlEle = document.createElement("div")
   controlEle.id = topic.ID
