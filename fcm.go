@@ -76,10 +76,11 @@ func (c *FCM) Notification(title string, tokens []string, video *NotificationVid
 					)
 					return err
 				}
-				for _, r := range response.Responses {
+				for i, r := range response.Responses {
 					if r.Error != nil {
 						slog.Error("Notification warning",
 							slog.String("severity", "WARNING"),
+							slog.String("token", t[i]),
 							slog.String("message", r.Error.Error()),
 						)
 					}
