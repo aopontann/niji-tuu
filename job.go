@@ -293,8 +293,8 @@ func (j *Job) KeywordAnnounceJob() error {
 						slog.String("severity", "ERROR"),
 						slog.String("message", err.Error()),
 					)
+					return err
 				}
-				return err
 			}
 		}
 	}
