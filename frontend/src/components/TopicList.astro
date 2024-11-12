@@ -5,19 +5,71 @@
       <div class="tags" id="topic-list"></div>
     </div>
   </div>
-  <button id="close-modal-topic-list" class="modal-close is-large" aria-label="close"></button>
+  <button
+    id="close-modal-topic-list"
+    class="modal-close is-large"
+    aria-label="close"></button>
 </div>
 
 <script>
-  import { isIos, isInStandaloneMode } from "../scripts/main";
+  import { toast } from "bulma-toast";
+  import { getMessaging, getToken } from "firebase/messaging";
+  import { vapidKey, createTagElement } from "../scripts/main";
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const modalEle = document.getElementById("modal-topic-list") as HTMLElement;
+  document.addEventListener("DOMContentLoaded", async () => {
+    console.log("DOMContentLoaded topic-list");
+    // 既に購買済みか
+    // if (Notification.permission !== "granted") {
+    //   console.log("not granted");
+    //   return;
+    // }
     
-  })
+    const topicListInfo = await fetch(
+      `${import.meta.env.PUBLIC_BASE_URL}/api/topic/list`,
+      {
+        method: "GET",
+      },
+    );
+    const topicList: any = await topicListInfo.json();
+    for (const topic of topicList) {
+      const topicEle = document.createElement("button");
+      
+      topicEle.addEventListener("click", async (params) => {
+        const messaging = getMessaging();
+        const currentToken = await getToken(messaging, { vapidKey });
+        document.getElementById("modal-loading")?.classList.add("is-active");
+        const res = await fetch(
+          `${import.meta.env.PUBLIC_BASE_URL}/api/topic`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer: ${currentToken}`,
+            },
+            body: JSON.stringify({ topic_id: topic.ID }),
+          },
+        );
+        const controlEle = createTagElement(topic, currentToken);
+        document.getElementById("topic-register-list")?.insertBefore(controlEle, document.getElementById("add-topic"));
+        document.getElementById("modal-loading")?.classList.remove("is-active");
+        document.getElementById("modal-topic-list")?.classList.remove("is-active");
+        if (res.ok) {
+          toast({
+            message: "登録成功",
+            type: "is-success",
+            pauseOnHover: true,
+            opacity: 5,
+            extraClasses: "mt-6",
+          });
+        }
+      });
+
+      topicEle.className = "tag";
+      topicEle.innerText = topic.Name;
+      document.getElementById("topic-list")?.appendChild(topicEle);
+    }
+  });
 
   document.getElementById("close-modal-topic-list")?.addEventListener("click", () => {
-    document.getElementById("modal-topic-list")?.classList.remove("is-active")
-  })
-
+    document.getElementById("modal-topic-list")?.classList.remove("is-active");
+  });
 </script>
