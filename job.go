@@ -1,7 +1,9 @@
 package nsa
 
 import (
+	"context"
 	"log/slog"
+	"regexp"
 	"slices"
 	"time"
 
@@ -241,6 +243,59 @@ func (j *Job) SongVideoAnnounceJob() error {
 				slog.String("message", err.Error()),
 			)
 			return err
+		}
+	}
+	return nil
+}
+
+// キーワード告知
+func (j *Job) KeywordAnnounceJob() error {
+	ctx := context.Background()
+	now, _ := time.Parse(time.RFC3339, time.Now().UTC().Format("2006-01-02T15:04:00Z"))
+	tAfter := now.Add(-20 * time.Minute)
+	tBefore := now.Add(-10 * time.Minute)
+	var videos []Video
+	err := j.db.Service.NewSelect().Model(&videos).Where("? BETWEEN ? AND ?", bun.Ident("created_at"), tAfter, tBefore).Scan(ctx)
+	if err != nil {
+		return err
+	}
+	if len(videos) == 0 {
+		return nil
+	}
+
+	topics, err := j.db.getTopicsUserRegister()
+	if err != nil {
+		slog.Error("getTopicsUserRegister",
+			slog.String("severity", "ERROR"),
+			slog.String("message", err.Error()),
+		)
+		return err
+	}
+
+	for _, topic := range topics {
+		reg := ".*" + topic.Name + ".*"
+		for _, v := range videos {
+			// キーワードに一致した場合
+			if regexp.MustCompile(reg).Match([]byte(v.Title)) {
+				slog.Info("TopicNotification",
+					slog.String("severity", "INFO"),
+					slog.String("topic_name", topic.Name),
+					slog.String("video_id", v.ID),
+					slog.String("video_title", v.Title),
+				)
+				err := j.fcm.TopicNotification(topic.Name, &NotificationVideo{
+					ID:        v.ID,
+					Title:     v.Title,
+					Thumbnail: v.Thumbnail,
+				})
+				if err != nil {
+					slog.Error("TopicNotification",
+						slog.String("severity", "ERROR"),
+						slog.String("message", err.Error()),
+					)
+					return err
+				}
+			}
 		}
 	}
 	return nil

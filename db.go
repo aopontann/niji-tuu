@@ -46,6 +46,24 @@ type User struct {
 	UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 }
 
+type Topic struct {
+	bun.BaseModel `bun:"table:topics"`
+
+	ID   string `bun:"id,type:int,pk"`
+	Name string `bun:"name,type:varchar(100)"`
+	// CreatedAt time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
+	// UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
+}
+
+type UserTopic struct {
+	bun.BaseModel `bun:"table:user_topics"`
+
+	UserToken string    `bun:"user_token,type:varchar(1000),pk"`
+	TopicID   string    `bun:"topic_id,type:varchar(20),pk"`
+	CreatedAt time.Time `json:"created_at,omitempty" bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
+	UpdatedAt time.Time `json:"updated_at,omitempty" bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
+}
+
 type DB struct {
 	Service *bun.DB
 }
@@ -223,4 +241,22 @@ func (db *DB) getSongTokens() ([]string, error) {
 	}
 
 	return tokens, nil
+}
+
+// ユーザーが登録しているキーワードのみを取得
+func (db *DB) getTopicsUserRegister() ([]Topic, error) {
+	ctx := context.Background()
+	var topics []Topic
+	_, err := db.Service.NewRaw(
+		`SELECT id, name FROM topics
+		WHERE EXISTS (SELECT 1 FROM user_topics WHERE topic_id = topics.id)`,
+	).Exec(ctx, &topics)
+	if err != nil {
+		slog.Error("getTopics",
+			slog.String("severity", "ERROR"),
+			slog.String("message", err.Error()),
+		)
+		return nil, err
+	}
+	return topics, nil
 }

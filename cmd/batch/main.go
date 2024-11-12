@@ -57,6 +57,17 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/v2/keyword", func(w http.ResponseWriter, r *http.Request) {
+		err := job.KeywordAnnounceJob()
+		if err != nil {
+			slog.Error("KeywordAnnounceJob",
+				slog.String("severity", "ERROR"),
+				slog.String("message", err.Error()),
+			)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+
 	// Determine port for HTTP service.
 	port := os.Getenv("PORT")
 	if port == "" {
