@@ -15,6 +15,7 @@ type Job struct {
 	db  *DB
 	yt  *Youtube
 	fcm *FCM
+	task *Task
 }
 
 func NewJobs(youtubeApiKey string, db *bun.DB) *Job {
@@ -22,6 +23,7 @@ func NewJobs(youtubeApiKey string, db *bun.DB) *Job {
 		yt:  NewYoutube(youtubeApiKey),
 		db:  NewDB(db),
 		fcm: NewFCM(),
+		task: NewTask(),
 	}
 }
 
@@ -147,6 +149,30 @@ func (j *Job) CheckNewVideoJob() error {
 			)
 			return err
 		}
+	}
+
+	// cloud task に歌みた告知タスクを登録
+	for _, v := range notExistsVideos {
+		// 生放送ではない、プレミア公開されない動画の場合
+		if v.LiveStreamingDetails == nil {
+			continue
+		}
+		// 放送終了した場合
+		if v.Snippet.LiveBroadcastContent == "none" {
+			continue
+		}
+		// 生放送の場合
+		if v.ContentDetails.Duration == "P0D" {
+			continue
+		}
+		if !j.yt.FindSongKeyword(v) || j.yt.FindIgnoreKeyword(v) {
+			continue
+		}
+		err = j.task.CreateSongTask(v)
+		// 検証中のため、エラーを返さない
+		// if err != nil {
+		// 	return err
+		// }
 	}
 
 	// 3回までリトライ　1秒後にリトライ
