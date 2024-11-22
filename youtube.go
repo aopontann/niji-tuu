@@ -109,6 +109,11 @@ func (y *Youtube) RssFeed(pids []string) ([]string, error) {
 	for _, pid := range pids {
 		resp, err := http.Get("https://www.youtube.com/feeds/videos.xml?playlist_id=" + pid)
 		if err != nil {
+			slog.Error("youtube-rss",
+				slog.String("severity", "Error"),
+				slog.String("playlist_id", pid),
+				slog.String("error_message", err.Error()),
+			)
 			resp.Body.Close()
 			return nil, err
 		}
