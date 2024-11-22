@@ -1,6 +1,7 @@
 package nsa
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,6 +14,21 @@ import (
 )
 
 func init() {
+	functions.HTTP("demo", func(w http.ResponseWriter, r *http.Request) {
+		var b SongTaskReqBody
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			slog.Error("NewDecoder error",
+				slog.String("severity", "ERROR"),
+				slog.String("message", err.Error()),
+			)
+			http.Error(w, "リクエストボディが不正です", http.StatusInternalServerError)
+			return
+		}
+		slog.Info("cloud task demo!!!",
+			slog.String("id", b.ID),
+		)
+	})
+
 	functions.HTTP("check", func(w http.ResponseWriter, r *http.Request) {
 		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 		slog.SetDefault(logger) // 以降、JSON形式で出力される。
