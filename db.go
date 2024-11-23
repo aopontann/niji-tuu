@@ -7,7 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
 	"google.golang.org/api/youtube/v3"
 )
 
@@ -49,7 +52,7 @@ type User struct {
 type Topic struct {
 	bun.BaseModel `bun:"table:topics"`
 
-	ID   string `bun:"id,type:int,pk"`
+	ID   int    `bun:"id,type:int,pk"`
 	Name string `bun:"name,type:varchar(100)"`
 	// CreatedAt time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 	// UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
@@ -72,8 +75,18 @@ func getSongWordList() []string {
 	return []string{"cover", "歌って", "歌わせて", "Original Song", "オリジナル曲", "オリジナル楽曲", "オリジナルソング", "MV", "Music Video"}
 }
 
-func NewDB(db *bun.DB) *DB {
+func NewDB(dsn string) *DB {
+	config, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		panic(err)
+	}
+	sqldb := stdlib.OpenDB(*config)
+	db := bun.NewDB(sqldb, pgdialect.New())
 	return &DB{db}
+}
+
+func (db *DB) Close() {
+	db.Service.Close()
 }
 
 func (db *DB) UpdatePlaylistItem(tx bun.Tx, newlist map[string]int64) error {
@@ -244,6 +257,33 @@ func (db *DB) getSongTokens() ([]string, error) {
 }
 
 // ユーザーが登録しているキーワードのみを取得
+func (db *DB) getAllTopics() ([]Topic, error) {
+	ctx := context.Background()
+	var topics []Topic
+	_, err := db.Service.NewSelect().Model((*Topic)(nil)).Column("id", "name").Exec(ctx, &topics)
+	if err != nil {
+		slog.Error("getAllTopics",
+			slog.String("severity", "ERROR"),
+			slog.String("message", err.Error()),
+		)
+		return nil, err
+	}
+	return topics, nil
+}
+
+// topicを情報を取得（ユーザーが登録していないTopicの場合、空を返す）
+func (db *DB) getTopicWhereUserRegister(topicID int) (Topic, error) {
+	ctx := context.Background()
+	var topic Topic
+	subq := db.Service.NewSelect().Model((*UserTopic)(nil)).ColumnExpr("1").Where("topic_id = ?", topicID)
+	err := db.Service.NewSelect().Model((*Topic)(nil)).Where("id = ? AND EXISTS (?)", topicID, subq).Scan(ctx, &topic)
+	if err != nil {
+		return topic, err
+	}
+	return topic, nil
+}
+
+// ユーザーが登録しているキーワードのみを取得
 func (db *DB) getTopicsUserRegister() ([]Topic, error) {
 	ctx := context.Background()
 	var topics []Topic
@@ -252,7 +292,7 @@ func (db *DB) getTopicsUserRegister() ([]Topic, error) {
 		WHERE EXISTS (SELECT 1 FROM user_topics WHERE topic_id = topics.id)`,
 	).Exec(ctx, &topics)
 	if err != nil {
-		slog.Error("getTopics",
+		slog.Error("getTopicsUserRegister",
 			slog.String("severity", "ERROR"),
 			slog.String("message", err.Error()),
 		)

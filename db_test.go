@@ -2,6 +2,7 @@ package nsa
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"testing"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 )
@@ -16,7 +18,7 @@ import (
 func TestSongVideos5m(t *testing.T) {
 	bunDB := setup()
 	defer bunDB.Close()
-	db := NewDB(bunDB)
+	db := NewDB(os.Getenv("DSN"))
 	ctx := context.Background()
 
 	videos := []Video{
@@ -47,7 +49,7 @@ func TestSongVideos5m(t *testing.T) {
 func TestNotExistsVideos(t *testing.T) {
 	bunDB := setup()
 	defer bunDB.Close()
-	db := NewDB(bunDB)
+	db := NewDB(os.Getenv("DSN"))
 	yt := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
 	ctx := context.Background()
 
@@ -90,4 +92,19 @@ func setup() *bun.DB {
 	}
 	sqldb := stdlib.OpenDB(*config)
 	return bun.NewDB(sqldb, pgdialect.New())
+}
+
+func TestGetTopicWhereUserRegister(t *testing.T) {
+	godotenv.Load(".env")
+	db := NewDB(os.Getenv("DSN"))
+
+	topicID := 4
+	topic, err := db.getTopicWhereUserRegister(topicID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			fmt.Println("empty")
+		}
+		t.Error(err)
+	}
+	fmt.Println(topic)
 }
