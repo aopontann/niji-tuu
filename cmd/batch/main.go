@@ -1,16 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
 
 	nsa "github.com/aopontann/nijisanji-songs-announcement"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/joho/godotenv"
 )
 
@@ -22,21 +19,8 @@ func main() {
 		godotenv.Load(".env")
 	}
 
-	config, err := pgx.ParseConfig(os.Getenv("DSN"))
-	if err != nil {
-		panic(err)
-	}
-	sqldb := stdlib.OpenDB(*config)
-	db := bun.NewDB(sqldb, pgdialect.New())
-	defer db.Close()
-
-	job := nsa.NewJobs(
-		os.Getenv("YOUTUBE_API_KEY"),
-		db,
-	)
-
 	http.HandleFunc("/v2/check", func(w http.ResponseWriter, r *http.Request) {
-		err := job.CheckNewVideoJob()
+		err := nsa.CheckNewVideoJob()
 		if err != nil {
 			slog.Error("CheckNewVideoJob",
 				slog.String("severity", "ERROR"),
@@ -47,7 +31,16 @@ func main() {
 	})
 
 	http.HandleFunc("/v2/song", func(w http.ResponseWriter, r *http.Request) {
-		err := job.SongVideoAnnounceJob()
+		var b nsa.SongTaskReqBody
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			slog.Error("NewDecoder error",
+				slog.String("severity", "ERROR"),
+				slog.String("message", err.Error()),
+			)
+			http.Error(w, "リクエストボディが不正です", http.StatusInternalServerError)
+			return
+		}
+		err := nsa.SongVideoAnnounceJob(b.ID)
 		if err != nil {
 			slog.Error("SongVideoAnnounceJob",
 				slog.String("severity", "ERROR"),
@@ -58,9 +51,18 @@ func main() {
 	})
 
 	http.HandleFunc("/v2/keyword", func(w http.ResponseWriter, r *http.Request) {
-		err := job.KeywordAnnounceJob()
+		var b nsa.TopicTaskReqBody
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			slog.Error("NewDecoder error",
+				slog.String("severity", "ERROR"),
+				slog.String("message", err.Error()),
+			)
+			http.Error(w, "リクエストボディが不正です", http.StatusInternalServerError)
+			return
+		}
+		err := nsa.TopicAnnounceJob(b.VID, b.TID)
 		if err != nil {
-			slog.Error("KeywordAnnounceJob",
+			slog.Error("TopicAnnounceJob",
 				slog.String("severity", "ERROR"),
 				slog.String("message", err.Error()),
 			)
