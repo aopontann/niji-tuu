@@ -6,18 +6,8 @@
 - [FCM](https://firebase.google.com/docs/cloud-messaging?hl=ja)
 - [PostgreSQL](https://www.postgresql.org/)
 - [Bun](https://bun.uptrace.dev/)
-- [atlas](https://atlasgo.io/)
 - [Astro](https://astro.build/)
 - [Bulma](https://bulma.io/)
-- [ko](https://github.com/ko-build/ko)
-
-### マイグレーション
-```
-atlas schema apply \
-  --url "postgres://postgres:example@/postgres?&sslmode=disable" \
-  --to "file://schema.sql" \
-  --dev-url "docker://postgres/16"
-```
 
 ### デプロイ
 バッチ
@@ -71,6 +61,7 @@ export GOOGLE_APPLICATION_CREDENTIALS="token.json"
 export KO_DOCKER_REPO=asia-northeast1-docker.pkg.dev/niji-tuu/buildpacks-dev
 gcloud auth configure-docker asia-northeast1-docker.pkg.dev
 gcloud config set project
+gcloud auth application-default login
 ```
 
 ### DBコンテナ
