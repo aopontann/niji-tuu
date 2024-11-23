@@ -56,7 +56,6 @@ require (
 
 require (
 	cloud.google.com/go/cloudtasks v1.13.2
-	cloud.google.com/go/compute v1.28.1 // indirect
 	firebase.google.com/go/v4 v4.14.0
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.0
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -70,7 +69,6 @@ require (
 	golang.org/x/oauth2 v0.23.0 // indirect
 	golang.org/x/sys v0.26.0 // indirect
 	golang.org/x/text v0.19.0 // indirect
-	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/grpc v1.67.1 // indirect
-	google.golang.org/protobuf v1.35.1 // indirect
+	google.golang.org/protobuf v1.35.1
 )
