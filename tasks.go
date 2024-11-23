@@ -1,4 +1,3 @@
-// Command createHTTPtask constructs and adds a task to a Cloud Tasks Queue.
 package nsa
 
 import (
@@ -26,8 +25,8 @@ type SongTaskReqBody struct {
 }
 
 type TopicTaskReqBody struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	VID string `json:"video_id"`
+	TID int    `json:"topic_id"`
 }
 
 func NewTask() *Task {
@@ -40,33 +39,25 @@ func NewTask() *Task {
 	return &Task{client}
 }
 
+// プレミア公開時刻の5分前にタスクが実行されるように、歌みたタスクを登録する
+// 公開時刻が実行日より31日以上の場合、タスク登録はできないためエラーになる
 func (t *Task) CreateSongTask(v youtube.Video) error {
 	projectID := os.Getenv("PROJECT_ID")
 	locationID := os.Getenv("LOCATION_ID")
-	queueID := os.Getenv("QUEUE_ID")
-	url := os.Getenv("DEMO_URL")
+	queueID := os.Getenv("SONG_QUEUE_ID")
+	url := os.Getenv("SONG_URL")
 	ctx := context.Background()
 
 	queuePath := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, queueID)
 
-	var scheduleTime time.Time
-	if v.LiveStreamingDetails != nil {
-		vstime, _ := time.Parse("2006-01-02T15:04:05Z", v.LiveStreamingDetails.ScheduledStartTime)
-		vstime5mAgo := vstime.Add(-time.Minute * 5)
-
-		if vstime5mAgo.After(time.Now()) && time.Until(vstime5mAgo).Minutes() > 5 {
-			scheduleTime = vstime5mAgo
-		} else {
-			scheduleTime = time.Now()
-		}
-	} else {
-		scheduleTime = time.Now()
-	}
+	// v.LiveStreamingDetails がある条件でタスクが作成されるため、v.LiveStreamingDetailsがあるかどうかのチェックは必要ない
+	// 実行時刻より過去の時間を指定すると、すぐにタスクが実行される
+	vstime, _ := time.Parse("2006-01-02T15:04:05Z", v.LiveStreamingDetails.ScheduledStartTime)
+	scheduleTime := vstime.Add(-time.Minute * 5)
 
 	req := &taskspb.CreateTaskRequest{
 		Parent: queuePath,
 		Task: &taskspb.Task{
-			// https://godoc.org/google.golang.org/genproto/googleapis/cloud/tasks/v2#HttpRequest
 			Name: fmt.Sprintf("%s/tasks/%s", queuePath, v.Id),
 			MessageType: &taskspb.Task_HttpRequest{
 				HttpRequest: &taskspb.HttpRequest{
@@ -91,6 +82,7 @@ func (t *Task) CreateSongTask(v youtube.Video) error {
 
 	_, err = t.Client.CreateTask(ctx, req)
 	if err != nil {
+		// 既に登録済みのタスクの場合、警告ログを表示　エラーは返さない
 		if strings.Contains(err.Error(), "AlreadyExists") {
 			slog.Warn("CreateSongTask",
 				slog.String("severity", "WARNING"),
@@ -98,6 +90,7 @@ func (t *Task) CreateSongTask(v youtube.Video) error {
 				slog.String("error_message", err.Error()),
 			)
 			return nil
+			// 既に登録済みのエラー以外はエラーログを表示　エラーを返す
 		} else {
 			slog.Error("CreateSongTask",
 				slog.String("severity", "ERROR"),
@@ -111,33 +104,28 @@ func (t *Task) CreateSongTask(v youtube.Video) error {
 	return nil
 }
 
-func (t *Task) CreateTopicTask(v youtube.Video, name string) error {
+// プレミア公開時刻の1時間前にタスクが実行されるように、Topicタスクを登録する
+// 公開時刻が1時間以内の場合、すぐにタスクを実行
+// 公開時刻が実行日より31日以上の場合、タスク登録はできないためエラーになる
+func (t *Task) CreateTopicTask(v youtube.Video, topic Topic) error {
 	projectID := os.Getenv("PROJECT_ID")
 	locationID := os.Getenv("LOCATION_ID")
-	queueID := os.Getenv("QUEUE_ID")
-	url := os.Getenv("DEMO_URL")
+	queueID := os.Getenv("TOPIC_QUEUE_ID")
+	url := os.Getenv("TOPIC_URL")
 	ctx := context.Background()
 
 	queuePath := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, queueID)
 
-	var scheduleTime time.Time
+	// 実行時刻より過去の時間を指定すると、すぐにタスクが実行される
+	scheduleTime := time.Now()
 	if v.LiveStreamingDetails != nil {
 		vstime, _ := time.Parse("2006-01-02T15:04:05Z", v.LiveStreamingDetails.ScheduledStartTime)
-		vstime1hAgo := vstime.Add(-time.Hour)
-
-		if vstime1hAgo.After(time.Now()) && time.Until(vstime1hAgo).Minutes() > 60 {
-			scheduleTime = vstime1hAgo
-		} else {
-			scheduleTime = time.Now()
-		}
-	} else {
-		scheduleTime = time.Now()
+		scheduleTime = vstime.Add(-time.Hour)
 	}
 
 	req := &taskspb.CreateTaskRequest{
 		Parent: queuePath,
 		Task: &taskspb.Task{
-			// https://godoc.org/google.golang.org/genproto/googleapis/cloud/tasks/v2#HttpRequest
 			Name: fmt.Sprintf("%s/tasks/%s", queuePath, v.Id),
 			MessageType: &taskspb.Task_HttpRequest{
 				HttpRequest: &taskspb.HttpRequest{
@@ -152,7 +140,7 @@ func (t *Task) CreateTopicTask(v youtube.Video, name string) error {
 		},
 	}
 
-	body := &TopicTaskReqBody{ID: v.Id, Name: name}
+	body := &TopicTaskReqBody{VID: v.Id, TID: topic.ID}
 	j, err := json.Marshal(body)
 	if err != nil {
 		return err
@@ -162,13 +150,15 @@ func (t *Task) CreateTopicTask(v youtube.Video, name string) error {
 
 	_, err = t.Client.CreateTask(ctx, req)
 	if err != nil {
+		// 既に登録済みのタスクの場合、警告ログを表示　エラーは返さない
 		if strings.Contains(err.Error(), "AlreadyExists") {
 			slog.Warn("CreateTopicTask",
 				slog.String("severity", "WARNING"),
 				slog.String("video_id", v.Id),
 				slog.String("error_message", err.Error()),
 			)
-			return err
+			return nil
+			// 既に登録済みのエラー以外はエラーログを表示　エラーを返す
 		} else {
 			slog.Error("CreateTopicTask",
 				slog.String("severity", "ERROR"),
