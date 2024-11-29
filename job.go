@@ -1,6 +1,7 @@
 package nsa
 
 import (
+	"context"
 	"database/sql"
 	"log/slog"
 	"os"
@@ -12,23 +13,63 @@ import (
 )
 
 func CheckNewVideoJob() error {
-	yt := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
-	db := NewDB(os.Getenv("DSN"))
-	defer db.Close()
-	task := NewTask()
-	pids, err := db.PlaylistIDs()
+	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
 	if err != nil {
-		slog.Error("playlists-ids",
+		return err
+	}
+	db, err := NewDB(os.Getenv("DSN"))
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	task, err := NewTask()
+	if err != nil {
+		return err
+	}
+
+	// DBに登録されているプレイリストの動画数を取得
+	oldPlaylists, err := db.Playlists()
+	if err != nil {
+		return err
+	}
+
+	// プレイリストIDリスト
+	var plist []string
+	for pid := range oldPlaylists {
+		plist = append(plist, pid)
+	}
+
+	// Youtube Data API から最新のプレイリストの動画数を取得
+	newPlaylists, err := yt.Playlists(plist)
+	if err != nil {
+		slog.Error("Playlists",
 			slog.String("severity", "ERROR"),
 			slog.String("message", err.Error()),
 		)
 		return err
 	}
 
-	// 公開前、公開中の動画IDを取得
-	upcomingLiveVideoIDs, err := yt.UpcomingLiveVideoIDs(pids)
+	// 動画数が変化しているプレイリストIDを取得
+	var changedPlaylistID []string
+	for pid, itemCount := range oldPlaylists {
+		if itemCount != newPlaylists[pid] {
+			changedPlaylistID = append(changedPlaylistID, pid)
+		}
+	}
+
+	// 新しくアップロードされた動画IDを取得
+	newVIDs, err := yt.PlaylistItems(changedPlaylistID)
 	if err != nil {
-		slog.Error("upcoming-live-video-ids",
+		slog.Error("PlaylistItems",
+			slog.String("severity", "ERROR"),
+			slog.String("message", err.Error()),
+		)
+		return err
+	}
+
+	pids, err := db.PlaylistIDs()
+	if err != nil {
+		slog.Error("playlists-ids",
 			slog.String("severity", "ERROR"),
 			slog.String("message", err.Error()),
 		)
@@ -46,7 +87,7 @@ func CheckNewVideoJob() error {
 	}
 
 	// 重複している動画IDを削除する準備
-	joinVIDs := append(upcomingLiveVideoIDs, rssVideoIDs...)
+	joinVIDs := append(newVIDs, rssVideoIDs...)
 	slices.Sort(joinVIDs)
 
 	// 動画情報を取得
@@ -142,10 +183,11 @@ func CheckNewVideoJob() error {
 	}
 
 	for _, topic := range topics {
-		reg := ".*" + topic.Name + ".*"
+		regPattern := ".*" + topic.Name + ".*"  
+		regex, _ := regexp.Compile(regPattern)  
 		for _, v := range notExistsVideos {
 			// キーワードに一致した場合
-			if regexp.MustCompile(reg).Match([]byte(v.Snippet.Title)) {
+			if regex.MatchString(v.Snippet.Title) {
 				slog.Info("CreateTopicTask",
 					slog.String("severity", "INFO"),
 					slog.String("topic_name", topic.Name),
@@ -170,8 +212,26 @@ func CheckNewVideoJob() error {
 	// 3回までリトライ　1秒後にリトライ
 	err = retry.Do(
 		func() error {
+			// トランザクション開始
+			ctx := context.Background()
+			tx, err := db.Service.BeginTx(ctx, &sql.TxOptions{})
+			if err != nil {
+				return err
+			}
+
+			// DBのプレイリスト動画数を更新
+			err = db.UpdatePlaylistItem(tx, newPlaylists)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
 			// 動画情報をDBに登録
-			err = db.SaveVideos(videos)
+			err = db.SaveVideos(tx, videos)
+			if err != nil {
+				return err
+			}
+
+			err = tx.Commit()
 			if err != nil {
 				return err
 			}
@@ -192,8 +252,14 @@ func CheckNewVideoJob() error {
 }
 
 func SongVideoAnnounceJob(vid string) error {
-	yt := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
-	db := NewDB(os.Getenv("DSN"))
+	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		return err
+	}
+	db, err := NewDB(os.Getenv("DSN"))
+	if err != nil {
+		return err
+	}
 	defer db.Close()
 	fcm := NewFCM()
 
@@ -267,8 +333,14 @@ func SongVideoAnnounceJob(vid string) error {
 
 // キーワード告知
 func TopicAnnounceJob(vid string, tid int) error {
-	yt := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
-	db := NewDB(os.Getenv("DSN"))
+	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		return err
+	}
+	db, err := NewDB(os.Getenv("DSN"))
+	if err != nil {
+		return err
+	}
 	defer db.Close()
 	fcm := NewFCM()
 
