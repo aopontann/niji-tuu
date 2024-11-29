@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"strings"
@@ -29,14 +28,14 @@ type TopicTaskReqBody struct {
 	TID int    `json:"topic_id"`
 }
 
-func NewTask() *Task {
+func NewTask() (*Task, error) {
 	ctx := context.Background()
 	client, err := cloudtasks.NewClient(ctx)
 	if err != nil {
-		log.Fatalf("error initializing app: %v\n", err)
+		return nil, fmt.Errorf("error initializing cloudtasks client: %v", err)
 	}
 
-	return &Task{client}
+	return &Task{client}, nil
 }
 
 // プレミア公開時刻の5分前にタスクが実行されるように、歌みたタスクを登録する

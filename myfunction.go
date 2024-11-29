@@ -17,7 +17,7 @@ func init() {
 				slog.String("severity", "ERROR"),
 				slog.String("message", err.Error()),
 			)
-			http.Error(w, "リクエストボディが不正です", http.StatusInternalServerError)
+			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
 			return
 		}
 		slog.Info("cloud task demo!!!",
@@ -49,7 +49,7 @@ func init() {
 				slog.String("severity", "ERROR"),
 				slog.String("message", err.Error()),
 			)
-			http.Error(w, "リクエストボディが不正です", http.StatusInternalServerError)
+			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
 			return
 		}
 
@@ -73,7 +73,7 @@ func init() {
 				slog.String("severity", "ERROR"),
 				slog.String("message", err.Error()),
 			)
-			http.Error(w, "リクエストボディが不正です", http.StatusInternalServerError)
+			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
 			return
 		}
 

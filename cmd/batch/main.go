@@ -37,7 +37,7 @@ func main() {
 				slog.String("severity", "ERROR"),
 				slog.String("message", err.Error()),
 			)
-			http.Error(w, "リクエストボディが不正です", http.StatusInternalServerError)
+			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
 			return
 		}
 		err := nsa.SongVideoAnnounceJob(b.ID)
@@ -57,7 +57,7 @@ func main() {
 				slog.String("severity", "ERROR"),
 				slog.String("message", err.Error()),
 			)
-			http.Error(w, "リクエストボディが不正です", http.StatusInternalServerError)
+			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
 			return
 		}
 		err := nsa.TopicAnnounceJob(b.VID, b.TID)
