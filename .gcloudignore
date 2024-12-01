@@ -15,3 +15,10 @@
 
 node_modules
 #!include:.gitignore
+
+frontend
+testdata
+cmd
+*_test.go
+README.md
+schema.sql

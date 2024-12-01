@@ -2,8 +2,6 @@ package nsa
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
 	"os"
 	"reflect"
 	"testing"
@@ -84,8 +82,10 @@ type VideosListResponse struct {
 }
 
 func TestYoutubeDemo(t *testing.T) {
-	youtubeApiKey := os.Getenv("YOUTUBE_API_KEY")
-	yt := NewYoutube(youtubeApiKey)
+	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
 
 	var videos youtube.VideoListResponse
 	data, err := os.ReadFile("testdata/videos.json")
@@ -104,26 +104,29 @@ func TestYoutubeDemo(t *testing.T) {
 
 	for i, item := range res.Items {
 		if reflect.DeepEqual(item, videos.Items[i]) {
-			fmt.Println("OK!!!")
+			t.Log("OK!!!")
 		}
 	}
 }
 
 func TestRssFeed(t *testing.T) {
-	youtubeApiKey := os.Getenv("YOUTUBE_API_KEY")
-	yt := NewYoutube(youtubeApiKey)
+	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
 
 	vids, err := yt.RssFeed([]string{"UCC7rRD6P7RQcx0hKv9RQP4w"})
 	if err != nil {
 		t.Error(err)
 	}
-
-	log.Println("vids:", vids)
+	t.Log("vids:", vids)
 }
 
 func TestVideos(t *testing.T) {
-	youtubeApiKey := os.Getenv("YOUTUBE_API_KEY")
-	yt := NewYoutube(youtubeApiKey)
+	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
 
 	vidList := []string{"o4Xhm5fVMBA", "jUdRrvEFZXc"}
 	videos, err := yt.Videos(vidList)
@@ -138,8 +141,10 @@ func TestVideos(t *testing.T) {
 
 func TestIsStartWithin5m(t *testing.T) {
 	// testdata/videos.json 75行目の時間を5分以内に手直しすること(UTC)
-	youtubeApiKey := os.Getenv("YOUTUBE_API_KEY")
-	yt := NewYoutube(youtubeApiKey)
+	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
 
 	var res youtube.VideoListResponse
 	data, err := os.ReadFile("testdata/videos.json")
@@ -153,9 +158,9 @@ func TestIsStartWithin5m(t *testing.T) {
 	// 目視確認用
 	for _, v := range res.Items {
 		if yt.IsStartWithin5m(*v) {
-			fmt.Println("true: ", v.Id)
+			t.Log("true: ", v.Id)
 		} else {
-			fmt.Println("false: ", v.Id)
+			t.Log("false: ", v.Id)
 		}
 	}
 
@@ -165,8 +170,10 @@ func TestIsStartWithin5m(t *testing.T) {
 }
 
 func TestFindSongKeyword(t *testing.T) {
-	youtubeApiKey := os.Getenv("YOUTUBE_API_KEY")
-	yt := NewYoutube(youtubeApiKey)
+	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
 
 	var res youtube.VideoListResponse
 	data, err := os.ReadFile("testdata/videos.json")
@@ -179,9 +186,9 @@ func TestFindSongKeyword(t *testing.T) {
 
 	for _, v := range res.Items {
 		if yt.FindSongKeyword(*v) {
-			fmt.Println("TRUE:", v.Snippet.Title)
+			t.Log("TRUE:", v.Snippet.Title)
 		} else {
-			fmt.Println("FALSE:", v.Snippet.Title)
+			t.Log("FALSE:", v.Snippet.Title)
 		}
 	}
 }

@@ -7,7 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
 	"google.golang.org/api/youtube/v3"
 )
 
@@ -49,7 +52,7 @@ type User struct {
 type Topic struct {
 	bun.BaseModel `bun:"table:topics"`
 
-	ID   string `bun:"id,type:int,pk"`
+	ID   int    `bun:"id,type:int,pk"`
 	Name string `bun:"name,type:varchar(100)"`
 	// CreatedAt time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 	// UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
@@ -59,7 +62,7 @@ type UserTopic struct {
 	bun.BaseModel `bun:"table:user_topics"`
 
 	UserToken string    `bun:"user_token,type:varchar(1000),pk"`
-	TopicID   string    `bun:"topic_id,type:varchar(20),pk"`
+	TopicID   int       `bun:"topic_id,type:int,pk"`
 	CreatedAt time.Time `json:"created_at,omitempty" bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 	UpdatedAt time.Time `json:"updated_at,omitempty" bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 }
@@ -72,8 +75,39 @@ func getSongWordList() []string {
 	return []string{"cover", "歌って", "歌わせて", "Original Song", "オリジナル曲", "オリジナル楽曲", "オリジナルソング", "MV", "Music Video"}
 }
 
-func NewDB(db *bun.DB) *DB {
-	return &DB{db}
+func NewDB(dsn string) (*DB, error) {
+	config, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		return nil, err
+	}
+	sqldb := stdlib.OpenDB(*config)
+	db := bun.NewDB(sqldb, pgdialect.New())
+	return &DB{db}, nil
+}
+
+func (db *DB) Close() error {
+	return db.Service.Close()
+}
+
+// DBに登録されているPlaylistsの動画数を取得
+// 返り値：map （キー：プレイリストID　値：動画数）
+func (db *DB) Playlists() (map[string]int64, error) {
+	// DBからチャンネルID、チャンネルごとの動画数を取得
+	var ids []string
+	var itemCount []int64
+	ctx := context.Background()
+	err := db.Service.NewSelect().Model((*Vtuber)(nil)).Column("id", "item_count").Scan(ctx, &ids, &itemCount)
+	if err != nil {
+		return nil, err
+	}
+
+	list := make(map[string]int64, 500)
+	for i := range ids {
+		pid := strings.Replace(ids[i], "UC", "UU", 1)
+		list[pid] = itemCount[i]
+	}
+
+	return list, nil
 }
 
 func (db *DB) UpdatePlaylistItem(tx bun.Tx, newlist map[string]int64) error {
@@ -118,7 +152,7 @@ func (db *DB) PlaylistIDs() ([]string, error) {
 }
 
 // 動画情報をDBに登録　登録済みの動画は無視する
-func (db *DB) SaveVideos(videos []youtube.Video) error {
+func (db *DB) SaveVideos(tx bun.Tx, videos []youtube.Video) error {
 	var Videos []Video
 	for _, v := range videos {
 		var Viewers int64
@@ -191,45 +225,6 @@ func (db *DB) NotExistsVideos(videos []youtube.Video) ([]youtube.Video, error) {
 	return nvideos, nil
 }
 
-// 5分後にプレミア公開される動画を取得
-func (db *DB) songVideos5m() ([]Video, error) {
-	ctx := context.Background()
-	now, _ := time.Parse(time.RFC3339, time.Now().UTC().Format("2006-01-02T15:04:00Z"))
-	tAfter := now.Add(1 * time.Second)
-	tBefore := now.Add(5 * time.Minute)
-	var videos []Video
-	err := db.Service.NewSelect().
-		Model(&videos).
-		Where("? BETWEEN ? AND ?", bun.Ident("scheduled_start_time"), tAfter, tBefore).
-		Where("duration != 'P0D'").
-		Where("content = 'upcoming'").
-		Scan(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(videos) == 0 {
-		return []Video{}, nil
-	}
-
-	var filtedVideos []Video
-
-	for _, v := range videos {
-		if v.Song {
-			filtedVideos = append(filtedVideos, v)
-			continue
-		}
-		for _, word := range getSongWordList() {
-			if strings.Contains(strings.ToLower(v.Title), strings.ToLower(word)) {
-				filtedVideos = append(filtedVideos, v)
-				continue
-			}
-		}
-	}
-
-	return filtedVideos, nil
-}
-
 // songカラムがtrueのトークンリストを取得
 func (db *DB) getSongTokens() ([]string, error) {
 	// DBからチャンネルID、チャンネルごとの動画数を取得
@@ -244,19 +239,28 @@ func (db *DB) getSongTokens() ([]string, error) {
 }
 
 // ユーザーが登録しているキーワードのみを取得
-func (db *DB) getTopicsUserRegister() ([]Topic, error) {
+func (db *DB) getAllTopics() ([]Topic, error) {
 	ctx := context.Background()
 	var topics []Topic
-	_, err := db.Service.NewRaw(
-		`SELECT id, name FROM topics
-		WHERE EXISTS (SELECT 1 FROM user_topics WHERE topic_id = topics.id)`,
-	).Exec(ctx, &topics)
+	err := db.Service.NewSelect().Model(&topics).Column("id", "name").Scan(ctx)
 	if err != nil {
-		slog.Error("getTopics",
+		slog.Error("getAllTopics",
 			slog.String("severity", "ERROR"),
 			slog.String("message", err.Error()),
 		)
 		return nil, err
 	}
 	return topics, nil
+}
+
+// topicを情報を取得（ユーザーが登録していないTopicの場合、空を返す）
+func (db *DB) getTopicWhereUserRegister(topicID int) (Topic, error) {
+	ctx := context.Background()
+	var topic Topic
+	subq := db.Service.NewSelect().Model((*UserTopic)(nil)).ColumnExpr("1").Where("topic_id = ?", topicID)
+	err := db.Service.NewSelect().Model((*Topic)(nil)).Where("id = ? AND EXISTS (?)", topicID, subq).Scan(ctx, &topic)
+	if err != nil {
+		return topic, err
+	}
+	return topic, nil
 }

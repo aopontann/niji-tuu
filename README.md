@@ -6,34 +6,62 @@
 - [FCM](https://firebase.google.com/docs/cloud-messaging?hl=ja)
 - [PostgreSQL](https://www.postgresql.org/)
 - [Bun](https://bun.uptrace.dev/)
-- [atlas](https://atlasgo.io/)
 - [Astro](https://astro.build/)
 - [Bulma](https://bulma.io/)
-- [ko](https://github.com/ko-build/ko)
-
-### マイグレーション
-```
-atlas schema apply \
-  --url "postgres://postgres:example@/postgres?&sslmode=disable" \
-  --to "file://schema.sql" \
-  --dev-url "docker://postgres/16"
-```
 
 ### デプロイ
 バッチ
 ```
 ko build ./cmd/batch
+gcloud functions deploy batch-check \
+--gen2 \
+--runtime=go121 \
+--region=asia-northeast1 \
+--source=. \
+--entry-point=check \
+--trigger-http \
+--allow-unauthenticated
+
+gcloud functions deploy batch-song \
+--gen2 \
+--runtime=go121 \
+--region=asia-northeast1 \
+--source=. \
+--entry-point=song \
+--trigger-http \
+--allow-unauthenticated
+
+gcloud functions deploy batch-topic \
+--gen2 \
+--runtime=go121 \
+--region=asia-northeast1 \
+--source=. \
+--entry-point=topic \
+--trigger-http \
+--allow-unauthenticated
+
+gcloud functions deploy batch-demo \
+--gen2 \
+--runtime=go121 \
+--region=asia-northeast1 \
+--source=. \
+--entry-point=demo \
+--trigger-http \
+--allow-unauthenticated
 ```
 WEBページ
 ```
 ko build ./frontend
+npx wrangler pages deploy dist --branch main
 ```
 
 ### メモ
 ```
 export GOOGLE_APPLICATION_CREDENTIALS="token.json"
-export KO_DOCKER_REPO=asia-northeast1-docker.pkg.dev/niji-tuu/buildpacks
+export KO_DOCKER_REPO=asia-northeast1-docker.pkg.dev/niji-tuu/buildpacks-dev
 gcloud auth configure-docker asia-northeast1-docker.pkg.dev
+gcloud config set project
+gcloud auth application-default login
 ```
 
 ### DBコンテナ
