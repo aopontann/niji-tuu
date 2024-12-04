@@ -125,7 +125,7 @@ func (t *Task) CreateTopicTask(v youtube.Video, topic Topic) error {
 	req := &taskspb.CreateTaskRequest{
 		Parent: queuePath,
 		Task: &taskspb.Task{
-			Name: fmt.Sprintf("%s/tasks/%s", queuePath, v.Id),
+			Name: fmt.Sprintf("%s/tasks/%s_%s", queuePath, v.Id, string(topic.ID)),
 			MessageType: &taskspb.Task_HttpRequest{
 				HttpRequest: &taskspb.HttpRequest{
 					HttpMethod: taskspb.HttpMethod_POST,
@@ -147,6 +147,13 @@ func (t *Task) CreateTopicTask(v youtube.Video, topic Topic) error {
 
 	req.Task.GetHttpRequest().Body = j
 
+	slog.Info("CreateTopicTask",
+		slog.String("severity", "INFO"),
+		slog.String("topic_name", topic.Name),
+		slog.String("video_id", v.Id),
+		slog.String("video_title", v.Snippet.Title),
+	)
+
 	_, err = t.Client.CreateTask(ctx, req)
 	if err != nil {
 		// 既に登録済みのタスクの場合、警告ログを表示　エラーは返さない
@@ -161,8 +168,10 @@ func (t *Task) CreateTopicTask(v youtube.Video, topic Topic) error {
 		} else {
 			slog.Error("CreateTopicTask",
 				slog.String("severity", "ERROR"),
+				slog.String("message", err.Error()),
+				slog.String("topic_name", topic.Name),
 				slog.String("video_id", v.Id),
-				slog.String("error_message", err.Error()),
+				slog.String("video_title", v.Snippet.Title),
 			)
 			return err
 		}
