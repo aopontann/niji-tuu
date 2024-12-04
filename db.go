@@ -140,6 +140,10 @@ func (db *DB) PlaylistIDs() ([]string, error) {
 	ctx := context.Background()
 	err := db.Service.NewSelect().Model((*Vtuber)(nil)).Column("id").Scan(ctx, &cids)
 	if err != nil {
+		slog.Error("PlaylistIDs",
+			slog.String("severity", "ERROR"),
+			slog.String("message", err.Error()),
+		)
 		return nil, err
 	}
 
@@ -203,6 +207,10 @@ func (db *DB) NotExistsVideos(videos []youtube.Video) ([]youtube.Video, error) {
 	var ids []string
 	err := db.Service.NewSelect().Model((*Video)(nil)).Column("id").Where("id IN (?)", bun.In(sids)).Scan(ctx, &ids)
 	if err != nil {
+		slog.Error("NotExistsVideos",
+			slog.String("severity", "ERROR"),
+			slog.String("message", err.Error()),
+		)
 		return nil, err
 	}
 
@@ -225,6 +233,28 @@ func (db *DB) NotExistsVideos(videos []youtube.Video) ([]youtube.Video, error) {
 	return nvideos, nil
 }
 
+// DBに登録されていない動画リストのみフィルター
+func (db *DB) NotExistsVideoID(vids []string) ([]string, error) {
+	ctx := context.Background()
+
+	// 既に存在している動画IDリスト
+	var ids []string
+	err := db.Service.NewSelect().Model((*Video)(nil)).Column("id").Where("id IN (?)", bun.In(vids)).Scan(ctx, &ids)
+	if err != nil {
+		return nil, err
+	}
+
+	// 存在していない動画IDリスト
+	var nids []string
+	for _, vid := range vids {
+		if !slices.Contains(ids, vid) {
+			nids = append(nids, vid)
+		}
+	}
+
+	return nids, nil
+}
+
 // songカラムがtrueのトークンリストを取得
 func (db *DB) getSongTokens() ([]string, error) {
 	// DBからチャンネルID、チャンネルごとの動画数を取得
@@ -232,6 +262,10 @@ func (db *DB) getSongTokens() ([]string, error) {
 	ctx := context.Background()
 	err := db.Service.NewSelect().Model((*User)(nil)).Column("token").Where("song = true").Scan(ctx, &tokens)
 	if err != nil {
+		slog.Error("getSongTokens",
+			slog.String("severity", "ERROR"),
+			slog.String("message", err.Error()),
+		)
 		return nil, err
 	}
 

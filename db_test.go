@@ -3,6 +3,7 @@ package nsa
 import (
 	"context"
 	"database/sql"
+	"log"
 	"os"
 	"testing"
 	"time"
@@ -144,4 +145,18 @@ func TestGetAllTopics(t *testing.T) {
 		t.Log(topic)
 	}
 
+}
+
+func TestNotExistsVideoID(t *testing.T) {
+	godotenv.Load(".env")
+	db, err := NewDB(os.Getenv("DSN"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	vids, err := db.NotExistsVideoID([]string{"aaa", "bbb"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(vids)
 }
