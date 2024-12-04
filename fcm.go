@@ -70,7 +70,7 @@ func (c *FCM) Notification(title string, tokens []string, video *NotificationVid
 			func() error {
 				response, err := c.Client.SendEachForMulticast(context.Background(), message)
 				if err != nil {
-					slog.Error("Notification error",
+					slog.Error("notification",
 						slog.String("severity", "ERROR"),
 						slog.String("message", err.Error()),
 					)
@@ -91,7 +91,7 @@ func (c *FCM) Notification(title string, tokens []string, video *NotificationVid
 			retry.Delay(2*time.Second),
 		)
 		if err != nil {
-			slog.Error("Notification error (retry)",
+			slog.Error("notification-retry",
 				slog.String("severity", "ERROR"),
 				slog.String("message", err.Error()),
 			)
@@ -157,7 +157,7 @@ func (c *FCM) TopicNotification(topic string, video *NotificationVideo) error {
 	}
 	_, err := c.Client.Send(ctx, message)
 	if err != nil {
-		slog.Error("TopicNotification error",
+		slog.Error("TopicNotification",
 			slog.String("severity", "ERROR"),
 			slog.String("message", err.Error()),
 		)

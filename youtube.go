@@ -116,10 +116,11 @@ func (y *Youtube) Playlists(plist []string) (map[string]int64, error) {
 		call := y.Service.Playlists.List([]string{"snippet", "contentDetails"}).MaxResults(50).Id(id)
 		res, err := call.Do()
 		if err != nil {
-			slog.Error("playlists-list",
+			slog.Error("Playlists",
 				slog.String("severity", "ERROR"),
 				slog.String("message", err.Error()),
 			)
+			return nil, err
 		}
 
 		for _, item := range res.Items {
@@ -143,7 +144,7 @@ func (y *Youtube) PlaylistItems(plist []string) ([]string, error) {
 		call := y.Service.PlaylistItems.List([]string{"snippet"}).PlaylistId(pid).MaxResults(3)
 		res, err := call.Do()
 		if err != nil {
-			slog.Error("playlistitems-list",
+			slog.Error("PlaylistItems",
 				slog.String("severity", "ERROR"),
 				slog.String("message", err.Error()),
 			)
@@ -170,10 +171,10 @@ func (y *Youtube) RssFeed(pids []string) ([]string, error) {
 	for _, pid := range pids {
 		resp, err := http.Get("https://www.youtube.com/feeds/videos.xml?playlist_id=" + pid)
 		if err != nil {
-			slog.Error("youtube-rss",
+			slog.Error("RssFeed",
 				slog.String("severity", "ERROR"),
 				slog.String("playlist_id", pid),
-				slog.String("error_message", err.Error()),
+				slog.String("message", err.Error()),
 			)
 			return nil, err
 		}
@@ -304,6 +305,10 @@ func (y *Youtube) Videos(vids []string) ([]youtube.Video, error) {
 		call := y.Service.Videos.List([]string{"snippet", "contentDetails", "liveStreamingDetails"}).Id(id).MaxResults(50)
 		res, err := call.Do()
 		if err != nil {
+			slog.Error("Videos",
+				slog.String("severity", "ERROR"),
+				slog.String("message", err.Error()),
+			)
 			return nil, err
 		}
 
