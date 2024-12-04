@@ -39,6 +39,20 @@ func init() {
 		}
 	})
 
+	functions.HTTP("check-rss", func(w http.ResponseWriter, r *http.Request) {
+		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+		slog.SetDefault(logger) // 以降、JSON形式で出力される。
+
+		err := CheckNewVideoJobWithRSS()
+		if err != nil {
+			slog.Error("CheckNewVideoJob",
+				slog.String("severity", "ERROR"),
+				slog.String("message", err.Error()),
+			)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+
 	functions.HTTP("song", func(w http.ResponseWriter, r *http.Request) {
 		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 		slog.SetDefault(logger) // 以降、JSON形式で出力される。
