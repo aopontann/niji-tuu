@@ -10,21 +10,6 @@ import (
 )
 
 func init() {
-	functions.HTTP("demo", func(w http.ResponseWriter, r *http.Request) {
-		var b SongTaskReqBody
-		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-			slog.Error("NewDecoder error",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
-			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
-			return
-		}
-		slog.Info("cloud task demo!!!",
-			slog.String("id", b.ID),
-		)
-	})
-
 	functions.HTTP("check", func(w http.ResponseWriter, r *http.Request) {
 		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 		slog.SetDefault(logger) // 以降、JSON形式で出力される。
@@ -46,6 +31,30 @@ func init() {
 		err := CheckNewVideoJobWithRSS()
 		if err != nil {
 			slog.Error("CheckNewVideoJob",
+				slog.String("severity", "ERROR"),
+				slog.String("message", err.Error()),
+			)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+
+	functions.HTTP("exist-check", func(w http.ResponseWriter, r *http.Request) {
+		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+		slog.SetDefault(logger) // 以降、JSON形式で出力される。
+
+		var b ExistCheckTaskReqBody
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			slog.Error("NewDecoder error",
+				slog.String("severity", "ERROR"),
+				slog.String("message", err.Error()),
+			)
+			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
+			return
+		}
+
+		err := CheckExistVideo(b.ID)
+		if err != nil {
+			slog.Error("CheckExistVideo",
 				slog.String("severity", "ERROR"),
 				slog.String("message", err.Error()),
 			)

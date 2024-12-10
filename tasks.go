@@ -28,6 +28,10 @@ type TopicTaskReqBody struct {
 	TID int    `json:"topic_id"`
 }
 
+type ExistCheckTaskReqBody struct {
+	ID string `json:"id"`
+}
+
 func NewTask() (*Task, error) {
 	ctx := context.Background()
 	client, err := cloudtasks.NewClient(ctx)
@@ -103,7 +107,7 @@ func (t *Task) CreateSongTask(v youtube.Video) error {
 	return nil
 }
 
-// プレミア公開時刻の1時間前にタスクが実行されるように、Topicタスクを登録する
+// 放送開始時刻の1時間前にタスクが実行されるように、Topicタスクを登録する
 // 公開時刻が1時間以内の場合、すぐにタスクを実行
 // 公開時刻が実行日より31日以上の場合、タスク登録はできないためエラーになる
 func (t *Task) CreateTopicTask(v youtube.Video, topic Topic) error {
@@ -125,7 +129,7 @@ func (t *Task) CreateTopicTask(v youtube.Video, topic Topic) error {
 	req := &taskspb.CreateTaskRequest{
 		Parent: queuePath,
 		Task: &taskspb.Task{
-			Name: fmt.Sprintf("%s/tasks/%s_%s", queuePath, v.Id, string(topic.ID)),
+			Name: fmt.Sprintf("%s/tasks/%s_%d", queuePath, v.Id, topic.ID),
 			MessageType: &taskspb.Task_HttpRequest{
 				HttpRequest: &taskspb.HttpRequest{
 					HttpMethod: taskspb.HttpMethod_POST,
@@ -172,6 +176,65 @@ func (t *Task) CreateTopicTask(v youtube.Video, topic Topic) error {
 				slog.String("topic_name", topic.Name),
 				slog.String("video_id", v.Id),
 				slog.String("video_title", v.Snippet.Title),
+			)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// 5分後に動画が登録されているか確認するタスクを登録する
+func (t *Task) CreateExistCheckTask(vid string) error {
+	projectID := os.Getenv("PROJECT_ID")
+	locationID := os.Getenv("LOCATION_ID")
+	queueID := os.Getenv("EXIST_CHECK_QUEUE_ID")
+	url := os.Getenv("EXIST_CHECK_URL")
+	ctx := context.Background()
+
+	queuePath := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, queueID)
+
+	req := &taskspb.CreateTaskRequest{
+		Parent: queuePath,
+		Task: &taskspb.Task{
+			Name: fmt.Sprintf("%s/tasks/%s", queuePath, vid),
+			MessageType: &taskspb.Task_HttpRequest{
+				HttpRequest: &taskspb.HttpRequest{
+					HttpMethod: taskspb.HttpMethod_POST,
+					Url:        url,
+					Headers: map[string]string{
+						"Content-Type": "application/json",
+					},
+				},
+			},
+			ScheduleTime: timestamppb.New(time.Now().Add(5 * time.Minute)),
+		},
+	}
+
+	body := &ExistCheckTaskReqBody{ID: vid}
+	j, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	req.Task.GetHttpRequest().Body = j
+
+	_, err = t.Client.CreateTask(ctx, req)
+	if err != nil {
+		// 既に登録済みのタスクの場合、警告ログを表示　エラーは返さない
+		if strings.Contains(err.Error(), "AlreadyExists") {
+			slog.Warn("CreateSongTask",
+				slog.String("severity", "WARNING"),
+				slog.String("video_id", vid),
+				slog.String("error_message", err.Error()),
+			)
+			return nil
+			// 既に登録済みのエラー以外はエラーログを表示　エラーを返す
+		} else {
+			slog.Error("CreateSongTask",
+				slog.String("severity", "ERROR"),
+				slog.String("video_id", vid),
+				slog.String("error_message", err.Error()),
 			)
 			return err
 		}
