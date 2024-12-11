@@ -10,8 +10,31 @@ import (
 )
 
 func init() {
-	functions.HTTP("demo", func(w http.ResponseWriter, r *http.Request) {
-		var b SongTaskReqBody
+	functions.HTTP("check", func(w http.ResponseWriter, r *http.Request) {
+		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+		slog.SetDefault(logger) // 以降、JSON形式で出力される。
+
+		err := CheckNewVideoJob()
+		if err != nil {
+			handleError(w, err, "CheckNewVideoJob")
+		}
+	})
+
+	functions.HTTP("check-rss", func(w http.ResponseWriter, r *http.Request) {
+		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+		slog.SetDefault(logger) // 以降、JSON形式で出力される。
+
+		err := CheckNewVideoJobWithRSS()
+		if err != nil {
+			handleError(w, err, "CheckNewVideoJobWithRSS")
+		}
+	})
+
+	functions.HTTP("exist-check", func(w http.ResponseWriter, r *http.Request) {
+		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+		slog.SetDefault(logger) // 以降、JSON形式で出力される。
+
+		var b ExistCheckTaskReqBody
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 			slog.Error("NewDecoder error",
 				slog.String("severity", "ERROR"),
@@ -20,22 +43,15 @@ func init() {
 			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
 			return
 		}
-		slog.Info("cloud task demo!!!",
-			slog.String("id", b.ID),
-		)
-	})
 
-	functions.HTTP("check", func(w http.ResponseWriter, r *http.Request) {
-		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-		slog.SetDefault(logger) // 以降、JSON形式で出力される。
+		if b.ID == "" {
+			http.Error(w, "ID is required", http.StatusBadRequest)
+			return
+		}
 
-		err := CheckNewVideoJob()
+		err := CheckExistVideo(b.ID)
 		if err != nil {
-			slog.Error("CheckNewVideoJob",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			handleError(w, err, "CheckExistVideo")
 		}
 	})
 
@@ -55,11 +71,7 @@ func init() {
 
 		err := SongVideoAnnounceJob(b.ID)
 		if err != nil {
-			slog.Error("SongVideoAnnounceJob",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			handleError(w, err, "SongVideoAnnounceJob")
 		}
 	})
 
@@ -79,11 +91,15 @@ func init() {
 
 		err := TopicAnnounceJob(b.VID, b.TID)
 		if err != nil {
-			slog.Error("TopicAnnounceJob",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			handleError(w, err, "TopicAnnounceJob")
 		}
 	})
+}
+
+func handleError(w http.ResponseWriter, err error, operation string) {
+	slog.Error(operation,
+		slog.String("severity", "ERROR"),
+		slog.String("message", err.Error()),
+	)
+	http.Error(w, err.Error(), http.StatusInternalServerError)
 }

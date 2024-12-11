@@ -139,36 +139,6 @@ func TestVideos(t *testing.T) {
 	}
 }
 
-func TestIsStartWithin5m(t *testing.T) {
-	// testdata/videos.json 75行目の時間を5分以内に手直しすること(UTC)
-	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	var res youtube.VideoListResponse
-	data, err := os.ReadFile("testdata/videos.json")
-	if err != nil {
-		t.Error(err)
-	}
-	if err := json.Unmarshal([]byte(data), &res); err != nil {
-		t.Error(err)
-	}
-
-	// 目視確認用
-	for _, v := range res.Items {
-		if yt.IsStartWithin5m(*v) {
-			t.Log("true: ", v.Id)
-		} else {
-			t.Log("false: ", v.Id)
-		}
-	}
-
-	if !yt.IsStartWithin5m(*res.Items[0]) {
-		t.Error("failed")
-	}
-}
-
 func TestFindSongKeyword(t *testing.T) {
 	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
 	if err != nil {

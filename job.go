@@ -6,10 +6,11 @@ import (
 	"log/slog"
 	"os"
 	"regexp"
-	"slices"
+	"strings"
 	"time"
 
 	"github.com/avast/retry-go/v4"
+	"google.golang.org/api/youtube/v3"
 )
 
 func CheckNewVideoJob() error {
@@ -33,179 +34,85 @@ func CheckNewVideoJob() error {
 		return err
 	}
 
-	// プレイリストIDリスト
-	var plist []string
-	for pid := range oldPlaylists {
-		plist = append(plist, pid)
-	}
-
 	// Youtube Data API から最新のプレイリストの動画数を取得
-	newPlaylists, err := yt.Playlists(plist)
+	var pids []string
+	for pid := range oldPlaylists {
+		pids = append(pids, pid)
+	}
+	newPlaylists, err := yt.Playlists(pids)
 	if err != nil {
-		slog.Error("Playlists",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
 		return err
 	}
 
-	// 動画数が変化しているプレイリストIDを取得
-	var changedPlaylistID []string
-	for pid, itemCount := range oldPlaylists {
-		if itemCount != newPlaylists[pid] {
-			changedPlaylistID = append(changedPlaylistID, pid)
+	// playlistで動画数を取得しても、PlaylistItemsに反映されるまでに時間がかかる？
+	// 反映されるのに時間が必要そうだから、10秒待つ処理入れる
+	time.Sleep(10 * time.Second)
+
+	// 新しくアップロードされた動画ID
+	newVIDs, err := GetNewVideoIDs(yt, db, oldPlaylists, newPlaylists)
+	if err != nil {
+		return err
+	}
+
+	// Playlist更新用にデータを整形
+	changedPlaylist := make(map[string]Playlist, 500)
+	for pid, playlist := range newPlaylists {
+		if playlist.ItemCount != oldPlaylists[pid].ItemCount || playlist.Url != oldPlaylists[pid].Url {
+			changedPlaylist[pid] = Playlist{ItemCount: playlist.ItemCount, Url: playlist.Url}
 		}
 	}
 
-	// 新しくアップロードされた動画IDを取得
-	newVIDs, err := yt.PlaylistItems(changedPlaylistID)
-	if err != nil {
-		slog.Error("PlaylistItems",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
+	if len(newVIDs) == 0 {
+		// DBのプレイリスト動画数を更新
+		err = retry.Do(
+			func() error {
+				return db.UpdatePlaylistItem(changedPlaylist)
+			},
+			retry.Attempts(3),
+			retry.Delay(1*time.Second),
 		)
-		return err
+		if err != nil {
+			slog.Error("UpdatePlaylistItem-retry",
+				slog.String("severity", "ERROR"),
+				slog.String("message", err.Error()),
+			)
+			return err
+		}
+		return nil
 	}
-
-	pids, err := db.PlaylistIDs()
-	if err != nil {
-		slog.Error("playlists-ids",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
-		return err
-	}
-
-	// RSSから過去30分間にアップロードされた動画IDを取得
-	rssVideoIDs, err := yt.RssFeed(pids)
-	if err != nil {
-		slog.Error("rss-feed",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
-		return err
-	}
-
-	// 重複している動画IDを削除する準備
-	joinVIDs := append(newVIDs, rssVideoIDs...)
-	slices.Sort(joinVIDs)
 
 	// 動画情報を取得
-	videos, err := yt.Videos(slices.Compact(joinVIDs))
+	videos, err := yt.Videos(newVIDs)
 	if err != nil {
-		slog.Error("videos-list",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
-		return err
-	}
-
-	// DBに登録されていない動画情報のみにフィルター
-	notExistsVideos, err := db.NotExistsVideos(videos)
-	if err != nil {
-		slog.Error("not-exists-videos",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
 		return err
 	}
 
 	// 確認用ログ
-	for _, v := range notExistsVideos {
-		slog.Info("notExistsVideos",
+	for _, v := range videos {
+		slog.Info("videos",
 			slog.String("severity", "INFO"),
 			slog.String("video_id", v.Id),
 			slog.String("title", v.Snippet.Title),
 		)
 	}
 
-	// 歌みた動画か判別しづらい動画をメールに送信する
-	for _, v := range notExistsVideos {
-		if yt.FindSongKeyword(v) {
-			continue
-		}
-		if v.LiveStreamingDetails == nil {
-			continue
-		}
-		if v.Snippet.LiveBroadcastContent != "upcoming" {
-			continue
-		}
-		if v.ContentDetails.Duration == "P0D" {
-			continue
-		}
-		// 特定のキーワードを含んでいる場合
-		if yt.FindIgnoreKeyword(v) {
-			continue
-		}
-
-		err := NewMail().Subject("歌みた動画判定").Id(v.Id).Title(v.Snippet.Title).Send()
-		if err != nil {
-			slog.Error("mail-send",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
-			return err
-		}
-	}
-
-	// cloud task に歌みた告知タスクを登録
-	for _, v := range notExistsVideos {
-		// 生放送ではない、プレミア公開されない動画の場合
-		if v.LiveStreamingDetails == nil {
-			continue
-		}
-		// 放送終了した場合
-		if v.Snippet.LiveBroadcastContent == "none" {
-			continue
-		}
-		// 生放送の場合
-		if v.ContentDetails.Duration == "P0D" {
-			continue
-		}
-		if !yt.FindSongKeyword(v) || yt.FindIgnoreKeyword(v) {
-			continue
-		}
-		err = task.CreateSongTask(v)
+	if os.Getenv("ENV") == "prod" {
+		// 歌みた動画か判別しづらい動画をメールに送信する
+		err = SendMailMaybeSongVideos(yt, videos)
 		if err != nil {
 			return err
 		}
-	}
 
-	// Topic全件取得
-	// 実際のプッシュ通知はユーザに登録されているTopicのみ通知する
-	topics, err := db.getAllTopics()
-	if err != nil {
-		slog.Error("getTopicsUserRegister",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
-		return err
-	}
+		// cloud task に歌みた告知タスクを登録
+		err = AddSongTaskToCloudTasks(yt, task, videos)
+		if err != nil {
+			return err
+		}
 
-	for _, topic := range topics {
-		regPattern := ".*" + topic.Name + ".*"  
-		regex, _ := regexp.Compile(regPattern)  
-		for _, v := range notExistsVideos {
-			// キーワードに一致した場合
-			if regex.MatchString(v.Snippet.Title) {
-				slog.Info("CreateTopicTask",
-					slog.String("severity", "INFO"),
-					slog.String("topic_name", topic.Name),
-					slog.String("video_id", v.Id),
-					slog.String("video_title", v.Snippet.Title),
-				)
-				err := task.CreateTopicTask(v, topic)
-				if err != nil {
-					slog.Error("CreateTopicTask",
-						slog.String("severity", "ERROR"),
-						slog.String("message", err.Error()),
-						slog.String("topic_name", topic.Name),
-						slog.String("video_id", v.Id),
-						slog.String("video_title", v.Snippet.Title),
-					)
-					return err
-				}
-			}
+		// cloud task にTopic告知タスクを登録
+		err = AddTopicTaskToCloudTasks(db, task, videos)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -220,7 +127,7 @@ func CheckNewVideoJob() error {
 			}
 
 			// DBのプレイリスト動画数を更新
-			err = db.UpdatePlaylistItem(tx, newPlaylists)
+			err = db.UpdatePlaylistItemWithTx(tx, changedPlaylist)
 			if err != nil {
 				tx.Rollback()
 				return err
@@ -251,6 +158,63 @@ func CheckNewVideoJob() error {
 	return nil
 }
 
+// 新しい動画の取得漏れがないかRSSを使って確認
+func CheckNewVideoJobWithRSS() error {
+	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		return err
+	}
+	db, err := NewDB(os.Getenv("DSN"))
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	task, err := NewTask()
+	if err != nil {
+		return err
+	}
+
+	pids, err := db.PlaylistIDs()
+	if err != nil {
+		return err
+	}
+
+	// RSSから過去30分間にアップロードされた動画IDを取得
+	rssVideoIDs, err := yt.RssFeed(pids)
+	if err != nil {
+		return err
+	}
+
+	notExistRssVIDs, err := db.NotExistsVideoID(rssVideoIDs)
+	if err != nil {
+		return err
+	}
+
+	if len(notExistRssVIDs) == 0 {
+		return nil
+	}
+
+	slog.Info("RssFeed",
+		slog.String("severity", "INFO"),
+		slog.String("notExistRssVIDs", strings.Join(notExistRssVIDs, ",")),
+	)
+
+	for _, vid := range notExistRssVIDs {
+		// 5分後に
+		err := task.CreateExistCheckTask(vid)
+		if err != nil {
+			slog.Error("CreateCheckTask",
+				slog.String("severity", "ERROR"),
+				slog.String("video_id", vid),
+			)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// 歌動画通知
 func SongVideoAnnounceJob(vid string) error {
 	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
 	if err != nil {
@@ -266,14 +230,10 @@ func SongVideoAnnounceJob(vid string) error {
 	// 動画か消されていないかチェック
 	videos, err := yt.Videos([]string{vid})
 	if err != nil {
-		slog.Error("yt.Videos",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
 		return err
 	}
 	if len(videos) == 0 {
-		slog.Warn("yt.Videos",
+		slog.Warn("Videos",
 			slog.String("severity", "WARNING"),
 			slog.String("video_id", vid),
 			slog.String("message", "deleted video"),
@@ -284,10 +244,6 @@ func SongVideoAnnounceJob(vid string) error {
 	// FCMトークンを取得
 	tokens, err := db.getSongTokens()
 	if err != nil {
-		slog.Error("get-song-tokens",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
 		return err
 	}
 
@@ -321,17 +277,13 @@ func SongVideoAnnounceJob(vid string) error {
 		},
 	)
 	if err != nil {
-		slog.Error("notification",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
 		return err
 	}
 
 	return nil
 }
 
-// キーワード告知
+// Topic通知
 func TopicAnnounceJob(vid string, tid int) error {
 	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
 	if err != nil {
@@ -347,14 +299,10 @@ func TopicAnnounceJob(vid string, tid int) error {
 	// 動画か消されていないかチェック
 	videos, err := yt.Videos([]string{vid})
 	if err != nil {
-		slog.Error("yt.Videos",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
 		return err
 	}
 	if len(videos) == 0 {
-		slog.Warn("yt.Videos",
+		slog.Warn("Videos",
 			slog.String("severity", "WARNING"),
 			slog.String("video_id", vid),
 			slog.String("message", "deleted video"),
@@ -372,6 +320,10 @@ func TopicAnnounceJob(vid string, tid int) error {
 		if err == sql.ErrNoRows {
 			return nil
 		}
+		slog.Error("getTopicWhereUserRegister",
+			slog.String("severity", "ERROR"),
+			slog.String("message", err.Error()),
+		)
 		return err
 	}
 
@@ -381,7 +333,33 @@ func TopicAnnounceJob(vid string, tid int) error {
 		Thumbnail: thumbnail,
 	})
 	if err != nil {
-		slog.Error("TopicNotification",
+		return err
+	}
+
+	return nil
+}
+
+func CheckExistVideo(vid string) error {
+	db, err := NewDB(os.Getenv("DSN"))
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	vids, err := db.NotExistsVideoID([]string{vid})
+	if err != nil {
+		return err
+	}
+
+	// DBに登録されている動画IDだった場合
+	if len(vids) == 0 {
+		return nil
+	}
+
+	// DBに登録されていない動画IDだった場合
+	err = NewMail().Subject("検証 動画ないよ").Id(vid).Title(vid).Send()
+	if err != nil {
+		slog.Error("mail-send",
 			slog.String("severity", "ERROR"),
 			slog.String("message", err.Error()),
 		)
@@ -389,4 +367,154 @@ func TopicAnnounceJob(vid string, tid int) error {
 	}
 
 	return nil
+}
+
+// 歌みた動画か判別しづらい動画をメールに送信する
+func SendMailMaybeSongVideos(yt *Youtube, videos []youtube.Video) error {
+	for _, v := range videos {
+		if yt.FindSongKeyword(v) {
+			continue
+		}
+		if v.LiveStreamingDetails == nil {
+			continue
+		}
+		if v.Snippet.LiveBroadcastContent != "upcoming" {
+			continue
+		}
+		if v.ContentDetails.Duration == "P0D" {
+			continue
+		}
+		// 特定のキーワードを含んでいる場合
+		if yt.FindIgnoreKeyword(v) {
+			continue
+		}
+
+		err := NewMail().Subject("歌みた動画判定").Id(v.Id).Title(v.Snippet.Title).Send()
+		if err != nil {
+			slog.Error("mail-send",
+				slog.String("severity", "ERROR"),
+				slog.String("message", err.Error()),
+			)
+			return err
+		}
+	}
+	return nil
+}
+
+// cloud task に歌みた告知タスクを登録
+func AddSongTaskToCloudTasks(yt *Youtube, task *Task, videos []youtube.Video) error {
+	for _, v := range videos {
+		// 生放送ではない、プレミア公開されない動画の場合
+		if v.LiveStreamingDetails == nil {
+			continue
+		}
+		// 放送終了した場合
+		if v.Snippet.LiveBroadcastContent == "none" {
+			continue
+		}
+		// 生放送の場合
+		if v.ContentDetails.Duration == "P0D" {
+			continue
+		}
+		if !yt.FindSongKeyword(v) || yt.FindIgnoreKeyword(v) {
+			continue
+		}
+		err := task.CreateSongTask(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// cloud task にTopic告知タスクを登録
+// 実際のプッシュ通知はユーザに登録されているTopicのみ通知する
+func AddTopicTaskToCloudTasks(db *DB, task *Task, videos []youtube.Video) error {
+	// Topic全件取得
+	topics, err := db.getAllTopics()
+	if err != nil {
+		return err
+	}
+
+	for _, topic := range topics {
+		regPattern := ".*" + topic.Name + ".*"
+		regex, _ := regexp.Compile(regPattern)
+		for _, v := range videos {
+			// キーワードに一致した場合
+			if regex.MatchString(v.Snippet.Title) {
+				err := task.CreateTopicTask(v, topic)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func GetNewVideoIDs(yt *Youtube, db *DB, oldPlaylists map[string]Playlist, newPlaylists map[string]Playlist) ([]string, error) {
+	// 新しくアップロードされた動画ID
+	var newVIDs []string
+	
+	for pid, playlist := range newPlaylists {
+		if playlist.ItemCount == oldPlaylists[pid].ItemCount && playlist.Url == oldPlaylists[pid].Url {
+			continue
+		}
+
+		slog.Info("changedPlaylist",
+			slog.String("severity", "INFO"),
+			slog.String("playlist_id", pid),
+			slog.Int64("old_item_count", oldPlaylists[pid].ItemCount),
+			slog.Int64("new_item_count", playlist.ItemCount),
+			slog.String("old_url", oldPlaylists[pid].Url),
+			slog.String("new_url", playlist.Url),
+		)
+
+		if playlist.ItemCount < oldPlaylists[pid].ItemCount {
+			// 動画が削除されても、動画がアップロードされている可能性もあるためcontinueしない
+			slog.Warn("動画が削除されている可能性があります",
+				slog.String("severity", "WARNING"),
+			)
+		}
+
+		// 更新されたプレイリストの動画IDリストを取得
+		vids, err := yt.PlaylistItems(pid)
+		if err != nil {
+			return nil, err
+		}
+
+		// DBに登録されていない動画のみにフィルター
+		notExistsVIDs, err := db.NotExistsVideoID(vids)
+		if err != nil {
+			return nil, err
+		}
+
+		// プレイリストに新しくアップロードされた動画があった場合
+		if len(notExistsVIDs) != 0 {
+			newVIDs = append(newVIDs, notExistsVIDs...)
+			continue
+		}
+
+		// プレイリストから新しい動画が見つからなかった場合
+		// RSSから過去30分間にアップロードされた動画IDを取得
+		rssVideoIDs, err := yt.RssFeed([]string{pid})
+		if err != nil {
+			return nil, err
+		}
+
+		// RSSに新しくアップロードされた動画があった場合
+		if len(rssVideoIDs) != 0 {
+			newVIDs = append(newVIDs, rssVideoIDs...)
+			continue
+		}
+
+		// 新しくアップロードされた動画が見つからなかった場合
+		slog.Warn("動画が見つかりませんでした",
+			slog.String("severity", "WARNING"),
+			slog.String("playlist_id", pid),
+		)
+	}
+
+	return newVIDs, nil
 }

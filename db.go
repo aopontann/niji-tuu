@@ -17,11 +17,12 @@ import (
 type Vtuber struct {
 	bun.BaseModel `bun:"table:vtubers"`
 
-	ID        string    `bun:"id,type:varchar(24),pk"`
-	Name      string    `bun:"name,notnull,type:varchar"`
-	ItemCount int64     `bun:"item_count,default:0,type:integer"`
-	CreatedAt time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
-	UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
+	ID                string    `bun:"id,type:varchar(24),pk"`
+	Name              string    `bun:"name,notnull,type:varchar"`
+	ItemCount         int64     `bun:"item_count,default:0,type:integer"`
+	PlaylistLatestUrl string    `bun:"playlist_latest_url,type:varchar"`
+	CreatedAt         time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
+	UpdatedAt         time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 }
 
 type Video struct {
@@ -71,8 +72,9 @@ type DB struct {
 	Service *bun.DB
 }
 
-func getSongWordList() []string {
-	return []string{"cover", "歌って", "歌わせて", "Original Song", "オリジナル曲", "オリジナル楽曲", "オリジナルソング", "MV", "Music Video"}
+type Playlist struct {
+	ItemCount int64
+	Url       string
 }
 
 func NewDB(dsn string) (*DB, error) {
@@ -90,40 +92,62 @@ func (db *DB) Close() error {
 }
 
 // DBに登録されているPlaylistsの動画数を取得
-// 返り値：map （キー：プレイリストID　値：動画数）
-func (db *DB) Playlists() (map[string]int64, error) {
-	// DBからチャンネルID、チャンネルごとの動画数を取得
-	var ids []string
-	var itemCount []int64
+func (db *DB) Playlists() (map[string]Playlist, error) {
+	var vtubers []Vtuber
 	ctx := context.Background()
-	err := db.Service.NewSelect().Model((*Vtuber)(nil)).Column("id", "item_count").Scan(ctx, &ids, &itemCount)
+	err := db.Service.NewSelect().Model(&vtubers).Scan(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	list := make(map[string]int64, 500)
-	for i := range ids {
-		pid := strings.Replace(ids[i], "UC", "UU", 1)
-		list[pid] = itemCount[i]
+	playlists := make(map[string]Playlist, 500)
+	for _, vtuber := range vtubers {
+		pid := strings.Replace(vtuber.ID, "UC", "UU", 1)
+		playlists[pid] = Playlist{ItemCount: vtuber.ItemCount, Url: vtuber.PlaylistLatestUrl}
 	}
 
-	return list, nil
+	return playlists, nil
 }
 
-func (db *DB) UpdatePlaylistItem(tx bun.Tx, newlist map[string]int64) error {
+func (db *DB) UpdatePlaylistItem(playlists map[string]Playlist) error {
 	ctx := context.Background()
 	// DBを新しく取得したデータに更新
-	var updateVideo []Vtuber
-	for pid, v := range newlist {
+	var updateVtubers []Vtuber
+	for pid, playlist := range playlists {
 		cid := strings.Replace(pid, "UU", "UC", 1)
-		updateVideo = append(updateVideo, Vtuber{ID: cid, ItemCount: v, UpdatedAt: time.Now()})
+		updateVtubers = append(updateVtubers, Vtuber{ID: cid, ItemCount: playlist.ItemCount, PlaylistLatestUrl: playlist.Url, UpdatedAt: time.Now()})
 	}
 
-	if len(updateVideo) == 0 {
+	if len(updateVtubers) == 0 {
 		return nil
 	}
 
-	_, err := tx.NewUpdate().Model(&updateVideo).Column("item_count", "updated_at").Bulk().Exec(ctx)
+	_, err := db.Service.NewUpdate().Model(&updateVtubers).Column("item_count", "playlist_latest_url", "updated_at").Bulk().Exec(ctx)
+	if err != nil {
+		slog.Error("update-itemCount",
+			slog.String("severity", "ERROR"),
+			slog.String("message", err.Error()),
+		)
+		return err
+	}
+
+	return nil
+}
+
+func (db *DB) UpdatePlaylistItemWithTx(tx bun.Tx, playlists map[string]Playlist) error {
+	ctx := context.Background()
+	// DBを新しく取得したデータに更新
+	var updateVtubers []Vtuber
+	for pid, playlist := range playlists {
+		cid := strings.Replace(pid, "UU", "UC", 1)
+		updateVtubers = append(updateVtubers, Vtuber{ID: cid, ItemCount: playlist.ItemCount, PlaylistLatestUrl: playlist.Url, UpdatedAt: time.Now()})
+	}
+
+	if len(updateVtubers) == 0 {
+		return nil
+	}
+
+	_, err := tx.NewUpdate().Model(&updateVtubers).Column("item_count", "playlist_latest_url", "updated_at").Bulk().Exec(ctx)
 	if err != nil {
 		slog.Error("update-itemCount",
 			slog.String("severity", "ERROR"),
@@ -140,6 +164,10 @@ func (db *DB) PlaylistIDs() ([]string, error) {
 	ctx := context.Background()
 	err := db.Service.NewSelect().Model((*Vtuber)(nil)).Column("id").Scan(ctx, &cids)
 	if err != nil {
+		slog.Error("PlaylistIDs",
+			slog.String("severity", "ERROR"),
+			slog.String("message", err.Error()),
+		)
 		return nil, err
 	}
 
@@ -191,38 +219,30 @@ func (db *DB) SaveVideos(tx bun.Tx, videos []youtube.Video) error {
 }
 
 // DBに登録されていない動画リストのみフィルター
-func (db *DB) NotExistsVideos(videos []youtube.Video) ([]youtube.Video, error) {
+func (db *DB) NotExistsVideoID(vids []string) ([]string, error) {
 	ctx := context.Background()
-	// IN句に使用する動画IDリスト
-	var sids []string
-	for _, v := range videos {
-		sids = append(sids, v.Id)
-	}
 
 	// 既に存在している動画IDリスト
 	var ids []string
-	err := db.Service.NewSelect().Model((*Video)(nil)).Column("id").Where("id IN (?)", bun.In(sids)).Scan(ctx, &ids)
+	err := db.Service.NewSelect().Model((*Video)(nil)).Column("id").Where("id IN (?)", bun.In(vids)).Scan(ctx, &ids)
 	if err != nil {
+		slog.Error("NotExistsVideoID",
+			slog.String("severity", "ERROR"),
+			slog.String("vids", strings.Join(vids, ",")),
+			slog.String("error_message", err.Error()),
+		)
 		return nil, err
 	}
 
 	// 存在していない動画IDリスト
 	var nids []string
-	for _, sid := range sids {
-		if !slices.Contains(ids, sid) {
-			nids = append(nids, sid)
+	for _, vid := range vids {
+		if !slices.Contains(ids, vid) {
+			nids = append(nids, vid)
 		}
 	}
 
-	// 存在していない動画情報リスト
-	var nvideos []youtube.Video
-	for _, v := range videos {
-		if slices.Contains(nids, v.Id) {
-			nvideos = append(nvideos, v)
-		}
-	}
-
-	return nvideos, nil
+	return nids, nil
 }
 
 // songカラムがtrueのトークンリストを取得
@@ -232,6 +252,10 @@ func (db *DB) getSongTokens() ([]string, error) {
 	ctx := context.Background()
 	err := db.Service.NewSelect().Model((*User)(nil)).Column("token").Where("song = true").Scan(ctx, &tokens)
 	if err != nil {
+		slog.Error("getSongTokens",
+			slog.String("severity", "ERROR"),
+			slog.String("message", err.Error()),
+		)
 		return nil, err
 	}
 

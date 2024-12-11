@@ -12,3 +12,5 @@ node_modules
 dist
 # 一旦config情報ファイルは追加
 config.js
+
+memo.md
