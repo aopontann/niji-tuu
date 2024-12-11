@@ -229,6 +229,7 @@ func (db *DB) NotExistsVideoID(vids []string) ([]string, error) {
 		slog.Error("NotExistsVideoID",
 			slog.String("severity", "ERROR"),
 			slog.String("vids", strings.Join(vids, ",")),
+			slog.String("error_message", err.Error()),
 		)
 		return nil, err
 	}

@@ -102,7 +102,7 @@ func NewYoutube(key string) (*Youtube, error) {
 // チャンネルIDをキー、プレイリストに含まれている動画数を値とした連想配列を返す
 func (y *Youtube) Playlists(pids []string) (map[string]Playlist, error) {
 	playlists := make(map[string]Playlist, 500)
-	for i := 0; i*50 <= len(pids); i++ {
+	for i := 0; i*50 < len(pids); i++ {
 		var id string
 		if len(pids) > 50*(i+1) {
 			id = strings.Join(pids[50*i:50*(i+1)], ",")
@@ -131,34 +131,25 @@ func (y *Youtube) Playlists(pids []string) (map[string]Playlist, error) {
 	return playlists, nil
 }
 
-func (y *Youtube) PlaylistItems(plist []string) ([]string, error) {
+func (y *Youtube) PlaylistItems(pid string) ([]string, error) {
 	// 動画IDを格納する文字列型配列を宣言
-	vidList := make([]string, 0, 1500)
+	vids := make([]string, 0, 10)
 
-	for _, pid := range plist {
-		var rid []string
-		call := y.Service.PlaylistItems.List([]string{"snippet"}).PlaylistId(pid).MaxResults(10)
-		res, err := call.Do()
-		if err != nil {
-			slog.Error("PlaylistItems",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
-			return []string{}, err
-		}
-
-		for _, item := range res.Items {
-			rid = append(rid, item.Snippet.ResourceId.VideoId)
-			vidList = append(vidList, item.Snippet.ResourceId.VideoId)
-		}
-
-		slog.Debug("youtube-playlistitems-list",
-			slog.String("severity", "DEBUG"),
-			slog.String("PlaylistId", pid),
-			slog.String("videoId", strings.Join(rid, ",")),
+	call := y.Service.PlaylistItems.List([]string{"snippet"}).PlaylistId(pid).MaxResults(10)
+	res, err := call.Do()
+	if err != nil {
+		slog.Error("PlaylistItems",
+			slog.String("severity", "ERROR"),
+			slog.String("message", err.Error()),
 		)
+		return []string{}, err
 	}
-	return vidList, nil
+
+	for i, item := range res.Items {
+		vids[i] = item.Snippet.ResourceId.VideoId
+	}
+
+	return vids, nil
 }
 
 // RSSから過去30分間にアップロードされた動画IDを取得

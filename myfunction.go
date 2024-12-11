@@ -16,11 +16,7 @@ func init() {
 
 		err := CheckNewVideoJob()
 		if err != nil {
-			slog.Error("CheckNewVideoJob",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			handleError(w, err, "CheckNewVideoJob")
 		}
 	})
 
@@ -30,11 +26,7 @@ func init() {
 
 		err := CheckNewVideoJobWithRSS()
 		if err != nil {
-			slog.Error("CheckNewVideoJob",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			handleError(w, err, "CheckNewVideoJobWithRSS")
 		}
 	})
 
@@ -52,13 +44,14 @@ func init() {
 			return
 		}
 
+		if b.ID == "" {
+			http.Error(w, "ID is required", http.StatusBadRequest)
+			return
+		}
+
 		err := CheckExistVideo(b.ID)
 		if err != nil {
-			slog.Error("CheckExistVideo",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			handleError(w, err, "CheckExistVideo")
 		}
 	})
 
@@ -78,11 +71,7 @@ func init() {
 
 		err := SongVideoAnnounceJob(b.ID)
 		if err != nil {
-			slog.Error("SongVideoAnnounceJob",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			handleError(w, err, "SongVideoAnnounceJob")
 		}
 	})
 
@@ -102,11 +91,15 @@ func init() {
 
 		err := TopicAnnounceJob(b.VID, b.TID)
 		if err != nil {
-			slog.Error("TopicAnnounceJob",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			handleError(w, err, "TopicAnnounceJob")
 		}
 	})
+}
+
+func handleError(w http.ResponseWriter, err error, operation string) {
+	slog.Error(operation,
+		slog.String("severity", "ERROR"),
+		slog.String("message", err.Error()),
+	)
+	http.Error(w, err.Error(), http.StatusInternalServerError)
 }

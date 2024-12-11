@@ -455,7 +455,8 @@ func AddTopicTaskToCloudTasks(db *DB, task *Task, videos []youtube.Video) error 
 
 func GetNewVideoIDs(yt *Youtube, db *DB, oldPlaylists map[string]Playlist, newPlaylists map[string]Playlist) ([]string, error) {
 	// 新しくアップロードされた動画ID
-	newVIDs := make([]string, 100)
+	var newVIDs []string
+	
 	for pid, playlist := range newPlaylists {
 		if playlist.ItemCount == oldPlaylists[pid].ItemCount && playlist.Url == oldPlaylists[pid].Url {
 			continue
@@ -478,7 +479,7 @@ func GetNewVideoIDs(yt *Youtube, db *DB, oldPlaylists map[string]Playlist, newPl
 		}
 
 		// 更新されたプレイリストの動画IDリストを取得
-		vids, err := yt.PlaylistItems([]string{pid})
+		vids, err := yt.PlaylistItems(pid)
 		if err != nil {
 			return nil, err
 		}

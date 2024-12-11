@@ -223,7 +223,7 @@ func (t *Task) CreateExistCheckTask(vid string) error {
 	if err != nil {
 		// 既に登録済みのタスクの場合、警告ログを表示　エラーは返さない
 		if strings.Contains(err.Error(), "AlreadyExists") {
-			slog.Warn("CreateSongTask",
+			slog.Warn("CreateExistCheckTask",
 				slog.String("severity", "WARNING"),
 				slog.String("video_id", vid),
 				slog.String("error_message", err.Error()),
@@ -231,7 +231,7 @@ func (t *Task) CreateExistCheckTask(vid string) error {
 			return nil
 			// 既に登録済みのエラー以外はエラーログを表示　エラーを返す
 		} else {
-			slog.Error("CreateSongTask",
+			slog.Error("CreateExistCheckTask",
 				slog.String("severity", "ERROR"),
 				slog.String("video_id", vid),
 				slog.String("error_message", err.Error()),
