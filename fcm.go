@@ -70,18 +70,13 @@ func (c *FCM) Notification(title string, tokens []string, video *NotificationVid
 			func() error {
 				response, err := c.Client.SendEachForMulticast(context.Background(), message)
 				if err != nil {
-					slog.Error("notification",
-						slog.String("severity", "ERROR"),
-						slog.String("message", err.Error()),
-					)
+					slog.Error(err.Error())
 					return err
 				}
 				for i, r := range response.Responses {
 					if r.Error != nil {
-						slog.Error("Notification warning",
-							slog.String("severity", "WARNING"),
+						slog.Warn(r.Error.Error(),
 							slog.String("token", t[i]),
-							slog.String("message", r.Error.Error()),
 						)
 					}
 				}
@@ -91,10 +86,7 @@ func (c *FCM) Notification(title string, tokens []string, video *NotificationVid
 			retry.Delay(2*time.Second),
 		)
 		if err != nil {
-			slog.Error("notification-retry",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
+			slog.Error(err.Error())
 			return err
 		}
 
@@ -107,17 +99,14 @@ func (c *FCM) SetTopic(token string, topic string) error {
 	ctx := context.Background()
 	res, err := c.Client.SubscribeToTopic(ctx, []string{token}, strToByte(topic))
 	if len(res.Errors) != 0 {
-		slog.Warn("SubscribeToTopic warning",
-			slog.String("severity", "WARNING"),
-			slog.String("message", res.Errors[0].Reason),
+		slog.Warn(res.Errors[0].Reason,
+			slog.String("token", token),
+			slog.String("topic", topic),
 		)
 		return nil
 	}
 	if err != nil {
-		slog.Error("SubscribeToTopic error",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
+		slog.Error(err.Error())
 		return err
 	}
 	return nil
@@ -126,17 +115,14 @@ func (c *FCM) DeleteTopic(token string, topic string) error {
 	ctx := context.Background()
 	res, err := c.Client.UnsubscribeFromTopic(ctx, []string{token}, strToByte(topic))
 	if len(res.Errors) != 0 {
-		slog.Warn("UnsubscribeFromTopic warning",
-			slog.String("severity", "WARNING"),
-			slog.String("message", res.Errors[0].Reason),
+		slog.Warn(res.Errors[0].Reason,
+			slog.String("token", token),
+			slog.String("topic", topic),
 		)
 		return nil
 	}
 	if err != nil {
-		slog.Error("UnsubscribeFromTopic error",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
+		slog.Error(err.Error())
 	}
 	return nil
 }
@@ -157,10 +143,7 @@ func (c *FCM) TopicNotification(topic string, video *NotificationVideo) error {
 	}
 	_, err := c.Client.Send(ctx, message)
 	if err != nil {
-		slog.Error("TopicNotification",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
+		slog.Error(err.Error())
 		return err
 	}
 	return nil

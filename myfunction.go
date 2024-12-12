@@ -10,36 +10,45 @@ import (
 )
 
 func init() {
-	functions.HTTP("check", func(w http.ResponseWriter, r *http.Request) {
-		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-		slog.SetDefault(logger) // 以降、JSON形式で出力される。
+	// Cloud Logging用のログ設定
+	ops := slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.LevelKey {
+				a.Key = "severity"
+				level := a.Value.Any().(slog.Level)
+				if level == slog.LevelWarn {
+					a.Value = slog.StringValue("WARNING")
+				}
+			}
 
+			return a
+		},
+	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &ops))
+	slog.SetDefault(logger)
+	
+	functions.HTTP("check", func(w http.ResponseWriter, r *http.Request) {
 		err := CheckNewVideoJob()
 		if err != nil {
-			handleError(w, err, "CheckNewVideoJob")
+			slog.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
 
 	functions.HTTP("check-rss", func(w http.ResponseWriter, r *http.Request) {
-		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-		slog.SetDefault(logger) // 以降、JSON形式で出力される。
-
 		err := CheckNewVideoJobWithRSS()
 		if err != nil {
-			handleError(w, err, "CheckNewVideoJobWithRSS")
+			slog.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
 
 	functions.HTTP("exist-check", func(w http.ResponseWriter, r *http.Request) {
-		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-		slog.SetDefault(logger) // 以降、JSON形式で出力される。
-
 		var b ExistCheckTaskReqBody
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-			slog.Error("NewDecoder error",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
+			slog.Error(err.Error())
 			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
 			return
 		}
@@ -51,55 +60,38 @@ func init() {
 
 		err := CheckExistVideo(b.ID)
 		if err != nil {
-			handleError(w, err, "CheckExistVideo")
+			slog.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
 
 	functions.HTTP("song", func(w http.ResponseWriter, r *http.Request) {
-		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-		slog.SetDefault(logger) // 以降、JSON形式で出力される。
-
 		var b SongTaskReqBody
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-			slog.Error("NewDecoder error",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
+			slog.Error(err.Error())
 			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
 			return
 		}
 
 		err := SongVideoAnnounceJob(b.ID)
 		if err != nil {
-			handleError(w, err, "SongVideoAnnounceJob")
+			slog.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
 
 	functions.HTTP("topic", func(w http.ResponseWriter, r *http.Request) {
-		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-		slog.SetDefault(logger) // 以降、JSON形式で出力される。
-
 		var b TopicTaskReqBody
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-			slog.Error("NewDecoder error",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
+			slog.Error(err.Error())
 			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
 			return
 		}
 
 		err := TopicAnnounceJob(b.VID, b.TID)
 		if err != nil {
-			handleError(w, err, "TopicAnnounceJob")
+			slog.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
-}
-
-func handleError(w http.ResponseWriter, err error, operation string) {
-	slog.Error(operation,
-		slog.String("severity", "ERROR"),
-		slog.String("message", err.Error()),
-	)
-	http.Error(w, err.Error(), http.StatusInternalServerError)
 }

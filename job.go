@@ -72,10 +72,7 @@ func CheckNewVideoJob() error {
 			retry.Delay(1*time.Second),
 		)
 		if err != nil {
-			slog.Error("UpdatePlaylistItem-retry",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
+			slog.Error(err.Error())
 			return err
 		}
 		return nil
@@ -90,7 +87,6 @@ func CheckNewVideoJob() error {
 	// 確認用ログ
 	for _, v := range videos {
 		slog.Info("videos",
-			slog.String("severity", "INFO"),
 			slog.String("video_id", v.Id),
 			slog.String("title", v.Snippet.Title),
 		)
@@ -148,10 +144,7 @@ func CheckNewVideoJob() error {
 		retry.Delay(1*time.Second),
 	)
 	if err != nil {
-		slog.Error("save-videos-retry",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
+		slog.Error(err.Error())
 		return err
 	}
 
@@ -195,7 +188,6 @@ func CheckNewVideoJobWithRSS() error {
 	}
 
 	slog.Info("RssFeed",
-		slog.String("severity", "INFO"),
 		slog.String("notExistRssVIDs", strings.Join(notExistRssVIDs, ",")),
 	)
 
@@ -203,8 +195,7 @@ func CheckNewVideoJobWithRSS() error {
 		// 5分後に
 		err := task.CreateExistCheckTask(vid)
 		if err != nil {
-			slog.Error("CreateCheckTask",
-				slog.String("severity", "ERROR"),
+			slog.Error(err.Error(),
 				slog.String("video_id", vid),
 			)
 			return err
@@ -233,10 +224,8 @@ func SongVideoAnnounceJob(vid string) error {
 		return err
 	}
 	if len(videos) == 0 {
-		slog.Warn("Videos",
-			slog.String("severity", "WARNING"),
+		slog.Warn("deleted video",
 			slog.String("video_id", vid),
-			slog.String("message", "deleted video"),
 		)
 		return nil
 	}
@@ -251,7 +240,6 @@ func SongVideoAnnounceJob(vid string) error {
 	thumbnail := videos[0].Snippet.Thumbnails.High.Url
 
 	slog.Info("song-video-announce",
-		slog.String("severity", "INFO"),
 		slog.String("video_id", vid),
 		slog.String("title", title),
 	)
@@ -259,10 +247,7 @@ func SongVideoAnnounceJob(vid string) error {
 	// 動作確認用としてメールを送信
 	err = NewMail().Subject("5分後に公開").Id(vid).Title(title).Send()
 	if err != nil {
-		slog.Error("mail-send",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
+		slog.Error(err.Error())
 		return err
 	}
 
@@ -302,10 +287,8 @@ func TopicAnnounceJob(vid string, tid int) error {
 		return err
 	}
 	if len(videos) == 0 {
-		slog.Warn("Videos",
-			slog.String("severity", "WARNING"),
+		slog.Warn("deleted video",
 			slog.String("video_id", vid),
-			slog.String("message", "deleted video"),
 		)
 		return nil
 	}
@@ -320,10 +303,7 @@ func TopicAnnounceJob(vid string, tid int) error {
 		if err == sql.ErrNoRows {
 			return nil
 		}
-		slog.Error("getTopicWhereUserRegister",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
+		slog.Error(err.Error())
 		return err
 	}
 
@@ -359,10 +339,7 @@ func CheckExistVideo(vid string) error {
 	// DBに登録されていない動画IDだった場合
 	err = NewMail().Subject("検証 動画ないよ").Id(vid).Title(vid).Send()
 	if err != nil {
-		slog.Error("mail-send",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
+		slog.Error(err.Error())
 		return err
 	}
 
@@ -391,10 +368,7 @@ func SendMailMaybeSongVideos(yt *Youtube, videos []youtube.Video) error {
 
 		err := NewMail().Subject("歌みた動画判定").Id(v.Id).Title(v.Snippet.Title).Send()
 		if err != nil {
-			slog.Error("mail-send",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
+			slog.Error(err.Error())
 			return err
 		}
 	}
@@ -463,7 +437,6 @@ func GetNewVideoIDs(yt *Youtube, db *DB, oldPlaylists map[string]Playlist, newPl
 		}
 
 		slog.Info("changedPlaylist",
-			slog.String("severity", "INFO"),
 			slog.String("playlist_id", pid),
 			slog.Int64("old_item_count", oldPlaylists[pid].ItemCount),
 			slog.Int64("new_item_count", playlist.ItemCount),
@@ -473,9 +446,7 @@ func GetNewVideoIDs(yt *Youtube, db *DB, oldPlaylists map[string]Playlist, newPl
 
 		if playlist.ItemCount < oldPlaylists[pid].ItemCount {
 			// 動画が削除されても、動画がアップロードされている可能性もあるためcontinueしない
-			slog.Warn("動画が削除されている可能性があります",
-				slog.String("severity", "WARNING"),
-			)
+			slog.Warn("動画が削除されている可能性があります")
 		}
 
 		// 更新されたプレイリストの動画IDリストを取得
@@ -511,7 +482,6 @@ func GetNewVideoIDs(yt *Youtube, db *DB, oldPlaylists map[string]Playlist, newPl
 
 		// 新しくアップロードされた動画が見つからなかった場合
 		slog.Warn("動画が見つかりませんでした",
-			slog.String("severity", "WARNING"),
 			slog.String("playlist_id", pid),
 		)
 	}

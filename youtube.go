@@ -112,10 +112,7 @@ func (y *Youtube) Playlists(pids []string) (map[string]Playlist, error) {
 		call := y.Service.Playlists.List([]string{"snippet", "contentDetails"}).MaxResults(50).Id(id)
 		res, err := call.Do()
 		if err != nil {
-			slog.Error("Playlists",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
+			slog.Error(err.Error())
 			return nil, err
 		}
 
@@ -138,10 +135,7 @@ func (y *Youtube) PlaylistItems(pid string) ([]string, error) {
 	call := y.Service.PlaylistItems.List([]string{"snippet"}).PlaylistId(pid).MaxResults(10)
 	res, err := call.Do()
 	if err != nil {
-		slog.Error("PlaylistItems",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
+		slog.Error(err.Error())
 		return []string{}, err
 	}
 
@@ -158,10 +152,8 @@ func (y *Youtube) RssFeed(pids []string) ([]string, error) {
 	for _, pid := range pids {
 		resp, err := http.Get("https://www.youtube.com/feeds/videos.xml?playlist_id=" + pid)
 		if err != nil {
-			slog.Error("RssFeed",
-				slog.String("severity", "ERROR"),
+			slog.Error(err.Error(),
 				slog.String("playlist_id", pid),
-				slog.String("message", err.Error()),
 			)
 			return nil, err
 		}
@@ -174,8 +166,7 @@ func (y *Youtube) RssFeed(pids []string) ([]string, error) {
 		resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			slog.Warn("youtube-rss",
-				slog.String("severity", "WARNING"),
+			slog.Warn("200以外のステータスコードを取得しました",
 				slog.String("playlist_id", pid),
 				slog.Int("status_code", resp.StatusCode),
 				slog.String("text", string(body)),
@@ -219,10 +210,7 @@ func (y *Youtube) Videos(vids []string) ([]youtube.Video, error) {
 		call := y.Service.Videos.List([]string{"snippet", "contentDetails", "liveStreamingDetails"}).Id(id).MaxResults(50)
 		res, err := call.Do()
 		if err != nil {
-			slog.Error("Videos",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
+			slog.Error(err.Error())
 			return nil, err
 		}
 
