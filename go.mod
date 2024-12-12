@@ -1,4 +1,4 @@
-module github.com/aopontann/nijisanji-songs-announcement
+module github.com/aopontann/niji-tuu
 
 go 1.21
 
