@@ -296,6 +296,11 @@ func TopicAnnounceJob(vid string, tid int) error {
 	title := videos[0].Snippet.Title
 	thumbnail := videos[0].Snippet.Thumbnails.High.Url
 
+	slog.Info("topic-announce",
+		slog.String("video_id", vid),
+		slog.String("title", title),
+	)
+
 	// 一人以上のユーザが登録しているTopicのみを取得
 	// ユーザ誰一人も登録していないTopicはプッシュ通知を送らない
 	topic, err := db.getTopicWhereUserRegister(tid)
