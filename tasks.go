@@ -87,18 +87,14 @@ func (t *Task) CreateSongTask(v youtube.Video) error {
 	if err != nil {
 		// 既に登録済みのタスクの場合、警告ログを表示　エラーは返さない
 		if strings.Contains(err.Error(), "AlreadyExists") {
-			slog.Warn("CreateSongTask",
-				slog.String("severity", "WARNING"),
+			slog.Warn(err.Error(),
 				slog.String("video_id", v.Id),
-				slog.String("error_message", err.Error()),
 			)
 			return nil
 			// 既に登録済みのエラー以外はエラーログを表示　エラーを返す
 		} else {
-			slog.Error("CreateSongTask",
-				slog.String("severity", "ERROR"),
+			slog.Error(err.Error(),
 				slog.String("video_id", v.Id),
-				slog.String("error_message", err.Error()),
 			)
 			return err
 		}
@@ -152,7 +148,6 @@ func (t *Task) CreateTopicTask(v youtube.Video, topic Topic) error {
 	req.Task.GetHttpRequest().Body = j
 
 	slog.Info("CreateTopicTask",
-		slog.String("severity", "INFO"),
 		slog.String("topic_name", topic.Name),
 		slog.String("video_id", v.Id),
 		slog.String("video_title", v.Snippet.Title),
@@ -162,17 +157,13 @@ func (t *Task) CreateTopicTask(v youtube.Video, topic Topic) error {
 	if err != nil {
 		// 既に登録済みのタスクの場合、警告ログを表示　エラーは返さない
 		if strings.Contains(err.Error(), "AlreadyExists") {
-			slog.Warn("CreateTopicTask",
-				slog.String("severity", "WARNING"),
+			slog.Warn(err.Error(),
 				slog.String("video_id", v.Id),
-				slog.String("error_message", err.Error()),
 			)
 			return nil
 			// 既に登録済みのエラー以外はエラーログを表示　エラーを返す
 		} else {
-			slog.Error("CreateTopicTask",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
+			slog.Error(err.Error(),
 				slog.String("topic_name", topic.Name),
 				slog.String("video_id", v.Id),
 				slog.String("video_title", v.Snippet.Title),
@@ -223,18 +214,14 @@ func (t *Task) CreateExistCheckTask(vid string) error {
 	if err != nil {
 		// 既に登録済みのタスクの場合、警告ログを表示　エラーは返さない
 		if strings.Contains(err.Error(), "AlreadyExists") {
-			slog.Warn("CreateExistCheckTask",
-				slog.String("severity", "WARNING"),
+			slog.Warn(err.Error(),
 				slog.String("video_id", vid),
-				slog.String("error_message", err.Error()),
 			)
 			return nil
 			// 既に登録済みのエラー以外はエラーログを表示　エラーを返す
 		} else {
-			slog.Error("CreateExistCheckTask",
-				slog.String("severity", "ERROR"),
+			slog.Error(err.Error(),
 				slog.String("video_id", vid),
-				slog.String("error_message", err.Error()),
 			)
 			return err
 		}

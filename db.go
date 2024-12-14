@@ -124,10 +124,7 @@ func (db *DB) UpdatePlaylistItem(playlists map[string]Playlist) error {
 
 	_, err := db.Service.NewUpdate().Model(&updateVtubers).Column("item_count", "playlist_latest_url", "updated_at").Bulk().Exec(ctx)
 	if err != nil {
-		slog.Error("update-itemCount",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
+		slog.Error(err.Error())
 		return err
 	}
 
@@ -149,10 +146,7 @@ func (db *DB) UpdatePlaylistItemWithTx(tx bun.Tx, playlists map[string]Playlist)
 
 	_, err := tx.NewUpdate().Model(&updateVtubers).Column("item_count", "playlist_latest_url", "updated_at").Bulk().Exec(ctx)
 	if err != nil {
-		slog.Error("update-itemCount",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
+		slog.Error(err.Error())
 		return err
 	}
 
@@ -164,10 +158,7 @@ func (db *DB) PlaylistIDs() ([]string, error) {
 	ctx := context.Background()
 	err := db.Service.NewSelect().Model((*Vtuber)(nil)).Column("id").Scan(ctx, &cids)
 	if err != nil {
-		slog.Error("PlaylistIDs",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
+		slog.Error(err.Error())
 		return nil, err
 	}
 
@@ -226,10 +217,8 @@ func (db *DB) NotExistsVideoID(vids []string) ([]string, error) {
 	var ids []string
 	err := db.Service.NewSelect().Model((*Video)(nil)).Column("id").Where("id IN (?)", bun.In(vids)).Scan(ctx, &ids)
 	if err != nil {
-		slog.Error("NotExistsVideoID",
-			slog.String("severity", "ERROR"),
+		slog.Error(err.Error(),
 			slog.String("vids", strings.Join(vids, ",")),
-			slog.String("error_message", err.Error()),
 		)
 		return nil, err
 	}
@@ -252,10 +241,7 @@ func (db *DB) getSongTokens() ([]string, error) {
 	ctx := context.Background()
 	err := db.Service.NewSelect().Model((*User)(nil)).Column("token").Where("song = true").Scan(ctx, &tokens)
 	if err != nil {
-		slog.Error("getSongTokens",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
+		slog.Error(err.Error())
 		return nil, err
 	}
 
@@ -268,10 +254,7 @@ func (db *DB) getAllTopics() ([]Topic, error) {
 	var topics []Topic
 	err := db.Service.NewSelect().Model(&topics).Column("id", "name").Scan(ctx)
 	if err != nil {
-		slog.Error("getAllTopics",
-			slog.String("severity", "ERROR"),
-			slog.String("message", err.Error()),
-		)
+		slog.Error(err.Error())
 		return nil, err
 	}
 	return topics, nil

@@ -20,7 +20,7 @@ import (
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 
-	nsa "github.com/aopontann/nijisanji-songs-announcement"
+	nsa "github.com/aopontann/niji-tuu"
 )
 
 type ReqBody struct {
@@ -34,7 +34,23 @@ type ReqBodyTopic struct {
 var dist embed.FS
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	// Cloud Logging用のログ設定
+	ops := slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.LevelKey {
+				a.Key = "severity"
+				level := a.Value.Any().(slog.Level)
+				if level == slog.LevelWarn {
+					a.Value = slog.StringValue("WARNING")
+				}
+			}
+
+			return a
+		},
+	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &ops))
 	slog.SetDefault(logger)
 
 	ctx := context.Background()
@@ -76,16 +92,12 @@ func main() {
 		if r.Method == http.MethodPost {
 			var b ReqBody
 			if err = json.NewDecoder(r.Body).Decode(&b); err != nil {
-				slog.Error("NewDecoder error",
-					slog.String("severity", "ERROR"),
-					slog.String("message", err.Error()),
-				)
+				slog.Error(err.Error())
 				http.Error(w, "リクエストボディが不正です", http.StatusInternalServerError)
 				return
 			}
 
 			slog.Info("POST",
-				slog.String("severity", "INFO"),
 				slog.String("token", token),
 				slog.String("User-Agent", r.Header["User-Agent"][0]),
 			)
@@ -95,10 +107,7 @@ func main() {
 				Set("song = EXCLUDED.song").
 				Exec(ctx)
 			if err != nil {
-				slog.Error("Upsert error",
-					slog.String("severity", "ERROR"),
-					slog.String("message", err.Error()),
-				)
+				slog.Error(err.Error())
 				http.Error(w, "処理に失敗しました", http.StatusInternalServerError)
 				return
 			}
@@ -123,7 +132,6 @@ func main() {
 			}
 			if err != nil {
 				slog.Info("POST",
-					slog.String("severity", "INFO"),
 					slog.String("token", token),
 					slog.String("User-Agent", r.Header["User-Agent"][0]),
 				)
@@ -135,16 +143,12 @@ func main() {
 		if r.Method == http.MethodPost {
 			var b ReqBody
 			if err = json.NewDecoder(r.Body).Decode(&b); err != nil {
-				slog.Error("NewDecoder error",
-					slog.String("severity", "ERROR"),
-					slog.String("message", err.Error()),
-				)
+				slog.Error(err.Error())
 				http.Error(w, "リクエストボディが不正です", http.StatusInternalServerError)
 				return
 			}
 
 			slog.Info("POST",
-				slog.String("severity", "INFO"),
 				slog.String("token", token),
 				slog.String("User-Agent", r.Header["User-Agent"][0]),
 			)
@@ -154,10 +158,7 @@ func main() {
 				Set("info = EXCLUDED.info").
 				Exec(ctx)
 			if err != nil {
-				slog.Error("Upsert error",
-					slog.String("severity", "ERROR"),
-					slog.String("message", err.Error()),
-				)
+				slog.Error(err.Error())
 				http.Error(w, "処理に失敗しました", http.StatusInternalServerError)
 				return
 			}
@@ -197,10 +198,7 @@ func main() {
 		fcm := nsa.NewFCM()
 		var b ReqBodyTopic
 		if err = json.NewDecoder(r.Body).Decode(&b); err != nil {
-			slog.Error("NewDecoder error",
-				slog.String("severity", "ERROR"),
-				slog.String("message", err.Error()),
-			)
+			slog.Error(err.Error())
 			http.Error(w, "リクエストボディが不正です", http.StatusInternalServerError)
 			return
 		}
@@ -230,7 +228,6 @@ func main() {
 
 		if r.Method == http.MethodPost {
 			slog.Info("POST",
-				slog.String("severity", "INFO"),
 				slog.String("token", token),
 				slog.String("topic_id", b.TopicID),
 				slog.String("topic_name", topicName),
@@ -264,7 +261,6 @@ func main() {
 
 		if r.Method == http.MethodDelete {
 			slog.Info("DELETE",
-				slog.String("severity", "INFO"),
 				slog.String("token", token),
 				slog.String("User-Agent", r.Header["User-Agent"][0]),
 			)
@@ -361,9 +357,6 @@ func main() {
 }
 
 func Error(w http.ResponseWriter, err error) {
-	slog.Error("insert error",
-		slog.String("severity", "ERROR"),
-		slog.String("message", err.Error()),
-	)
+	slog.Error(err.Error())
 	http.Error(w, "処理に失敗しました", http.StatusInternalServerError)
 }
