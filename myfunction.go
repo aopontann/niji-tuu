@@ -37,34 +37,6 @@ func init() {
 		}
 	})
 
-	functions.HTTP("check-rss", func(w http.ResponseWriter, r *http.Request) {
-		err := CheckNewVideoJobWithRSS()
-		if err != nil {
-			slog.Error(err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	})
-
-	functions.HTTP("exist-check", func(w http.ResponseWriter, r *http.Request) {
-		var b ExistCheckTaskReqBody
-		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-			slog.Error(err.Error())
-			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
-			return
-		}
-
-		if b.ID == "" {
-			http.Error(w, "ID is required", http.StatusBadRequest)
-			return
-		}
-
-		err := CheckExistVideo(b.ID)
-		if err != nil {
-			slog.Error(err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	})
-
 	functions.HTTP("song", func(w http.ResponseWriter, r *http.Request) {
 		var b SongTaskReqBody
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
