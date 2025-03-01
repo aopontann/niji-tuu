@@ -1,12 +1,15 @@
 package nsa
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"regexp"
-	"strings"
+	"slices"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -86,7 +89,7 @@ func CheckNewVideoJob() error {
 
 	// 確認用ログ
 	for _, v := range videos {
-		slog.Info("videos",
+		slog.Info("new-videos",
 			slog.String("video_id", v.Id),
 			slog.String("title", v.Snippet.Title),
 		)
@@ -109,6 +112,19 @@ func CheckNewVideoJob() error {
 		err = AddTopicTaskToCloudTasks(db, task, videos)
 		if err != nil {
 			return err
+		}
+
+		// discord から通知するタスクを登録
+		discordURL := os.Getenv("DISCORD_URL")
+		for _, v := range videos {
+			err = task.CreateNewVideoTask(v, discordURL)
+			if err != nil {
+				return err
+			}
+			slog.Info("videos",
+				slog.String("video_id", v.Id),
+				slog.String("title", v.Snippet.Title),
+			)
 		}
 	}
 
@@ -146,60 +162,6 @@ func CheckNewVideoJob() error {
 	if err != nil {
 		slog.Error(err.Error())
 		return err
-	}
-
-	return nil
-}
-
-// 新しい動画の取得漏れがないかRSSを使って確認
-func CheckNewVideoJobWithRSS() error {
-	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
-	if err != nil {
-		return err
-	}
-	db, err := NewDB(os.Getenv("DSN"))
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-	task, err := NewTask()
-	if err != nil {
-		return err
-	}
-
-	pids, err := db.PlaylistIDs()
-	if err != nil {
-		return err
-	}
-
-	// RSSから過去30分間にアップロードされた動画IDを取得
-	rssVideoIDs, err := yt.RssFeed(pids)
-	if err != nil {
-		return err
-	}
-
-	notExistRssVIDs, err := db.NotExistsVideoID(rssVideoIDs)
-	if err != nil {
-		return err
-	}
-
-	if len(notExistRssVIDs) == 0 {
-		return nil
-	}
-
-	slog.Info("RssFeed",
-		slog.String("notExistRssVIDs", strings.Join(notExistRssVIDs, ",")),
-	)
-
-	for _, vid := range notExistRssVIDs {
-		// 5分後に
-		err := task.CreateExistCheckTask(vid)
-		if err != nil {
-			slog.Error(err.Error(),
-				slog.String("video_id", vid),
-			)
-			return err
-		}
 	}
 
 	return nil
@@ -324,28 +286,63 @@ func TopicAnnounceJob(vid string, tid int) error {
 	return nil
 }
 
-func CheckExistVideo(vid string) error {
+func DiscordAnnounceJob(vid string) error {
+	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		return err
+	}
 	db, err := NewDB(os.Getenv("DSN"))
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	vids, err := db.NotExistsVideoID([]string{vid})
+	// 動画か消されていないかチェック
+	videos, err := yt.Videos([]string{vid})
 	if err != nil {
 		return err
 	}
-
-	// DBに登録されている動画IDだった場合
-	if len(vids) == 0 {
+	if len(videos) == 0 {
+		slog.Warn("deleted video",
+			slog.String("video_id", vid),
+		)
 		return nil
 	}
 
-	// DBに登録されていない動画IDだった場合
-	err = NewMail().Subject("検証 動画ないよ").Id(vid).Title(vid).Send()
+	title := videos[0].Snippet.Title
+
+	slog.Info("discord-announce",
+		slog.String("video_id", vid),
+		slog.String("title", title),
+	)
+
+	roles, err := db.GetRoles()
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
 		slog.Error(err.Error())
 		return err
+	}
+
+	for _, role := range roles {
+		regPattern := ".*" + role.Name + ".*"
+		regex, _ := regexp.Compile(regPattern)
+		if !regex.MatchString(title) {
+			continue
+		}
+
+		// キーワードに一致した場合
+		body := []byte(fmt.Sprintf(`{"content": "<@&%s>\nhttps://www.youtube.com/watch?v=%s"}`, role.ID, vid))
+		resp, err := http.Post(
+			role.WenhookURL,
+			"application/json",
+			bytes.NewBuffer(body),
+		)
+		if err != nil {
+			return err
+		}
+		resp.Body.Close()
 	}
 
 	return nil
@@ -433,9 +430,8 @@ func AddTopicTaskToCloudTasks(db *DB, task *Task, videos []youtube.Video) error 
 }
 
 func GetNewVideoIDs(yt *Youtube, db *DB, oldPlaylists map[string]Playlist, newPlaylists map[string]Playlist) ([]string, error) {
-	// 新しくアップロードされた動画ID
-	var newVIDs []string
-	
+	// YouTube Data API から新着動画IDを取得
+	var ytVIDs []string
 	for pid, playlist := range newPlaylists {
 		if playlist.ItemCount == oldPlaylists[pid].ItemCount && playlist.Url == oldPlaylists[pid].Url {
 			continue
@@ -450,7 +446,7 @@ func GetNewVideoIDs(yt *Youtube, db *DB, oldPlaylists map[string]Playlist, newPl
 		)
 
 		if playlist.ItemCount < oldPlaylists[pid].ItemCount {
-			// 動画が削除されても、動画がアップロードされている可能性もあるためcontinueしない
+			// 動画が削除されても、新しい動画がアップロードされている可能性もあるためcontinueしない
 			slog.Warn("動画が削除されている可能性があります")
 		}
 
@@ -460,35 +456,29 @@ func GetNewVideoIDs(yt *Youtube, db *DB, oldPlaylists map[string]Playlist, newPl
 			return nil, err
 		}
 
-		// DBに登録されていない動画のみにフィルター
-		notExistsVIDs, err := db.NotExistsVideoID(vids)
-		if err != nil {
-			return nil, err
-		}
+		ytVIDs = append(ytVIDs, vids...)
+	}
 
-		// プレイリストに新しくアップロードされた動画があった場合
-		if len(notExistsVIDs) != 0 {
-			newVIDs = append(newVIDs, notExistsVIDs...)
-			continue
-		}
+	// RSS から新着動画IDを取得
+	var pids []string
+	for pid := range oldPlaylists {
+		pids = append(pids, pid)
+	}
 
-		// プレイリストから新しい動画が見つからなかった場合
-		// RSSから過去30分間にアップロードされた動画IDを取得
-		rssVideoIDs, err := yt.RssFeed([]string{pid})
-		if err != nil {
-			return nil, err
-		}
+	rssVIDs, err := yt.RssFeed(pids)
+	if err != nil {
+		return nil, err
+	}
 
-		// RSSに新しくアップロードされた動画があった場合
-		if len(rssVideoIDs) != 0 {
-			newVIDs = append(newVIDs, rssVideoIDs...)
-			continue
-		}
+	// 動画IDリストを結合して重複削除処理をする
+	joinedVIDs := append(ytVIDs, rssVIDs...)
+	slices.Sort(joinedVIDs)
+	vids := slices.Compact(joinedVIDs)
 
-		// 新しくアップロードされた動画が見つからなかった場合
-		slog.Warn("動画が見つかりませんでした",
-			slog.String("playlist_id", pid),
-		)
+	// DBに登録されていない動画のみにフィルター
+	newVIDs, err := db.NotExistsVideoID(vids)
+	if err != nil {
+		return nil, err
 	}
 
 	return newVIDs, nil
