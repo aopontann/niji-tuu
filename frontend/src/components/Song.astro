@@ -1,0 +1,98 @@
+<label class="checkbox mb-2">
+  <input id="checkbox-song" type="checkbox" />
+  歌みた動画が公開される5分前に通知を受け取る
+</label>
+
+<script>
+  import { toast } from "bulma-toast";
+  import {
+    isSupported,
+    getMessaging,
+    getToken,
+    deleteToken,
+  } from "firebase/messaging";
+  import { getFCMToken, loadingStatus, vapidKey } from "../scripts/main";
+
+  const $iosModalEle = document.getElementById("ios-modal-js") as HTMLElement;
+  const songEle = document.getElementById("checkbox-song") as HTMLElement;
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    console.log("DOMContentLoaded song");
+    // 既に購買済みか
+    if (Notification.permission !== "granted") {
+      console.log("not granted");
+      return;
+    }
+    const messaging = getMessaging();
+    const currentToken = await getToken(messaging, { vapidKey });
+
+    try {
+      const resSong = await fetch(
+        `${import.meta.env.PUBLIC_BASE_URL}/api/song`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer: ${currentToken}`,
+          },
+        },
+      );
+      if (resSong.status == 200) {
+        const songData: any = await resSong.json();
+        console.log(songData);
+        songEle.checked = songData.status;
+        window.localStorage.setItem("checkbox-song", songData.status);
+      } else {
+        const msg = await resSong.text();
+        console.log(msg);
+      }
+    } catch (error) {
+      console.error(error);
+      // window.alert("予期しないエラーが発生しました")
+    }
+    loadingStatus.song = true
+    if (loadingStatus.song && loadingStatus.info && loadingStatus.topic) {
+      document.getElementById("modal-loading")?.classList.remove("is-active");
+    }
+  });
+
+  songEle.addEventListener("click", async () => {
+    if (!(await isSupported())) {
+      $iosModalEle.classList.add("is-active");
+      return;
+    }
+
+    document.getElementById("modal-loading")?.classList.add("is-active");
+
+    const currentToken = await getFCMToken();
+    if (currentToken == "") {
+      console.log("none");
+      return;
+    }
+
+    const res = await fetch(`${import.meta.env.PUBLIC_BASE_URL}/api/song`, {
+      method: "POST",
+      cache: "no-cache",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer: ${currentToken}`,
+      },
+      body: JSON.stringify({ status: songEle.checked }), // 本体のデータ型は "Content-Type" ヘッダーと一致させる必要があります
+    });
+
+    if (!res.ok) {
+      window.alert("登録に失敗しました");
+    }
+
+    window.localStorage.setItem("checkbox-song", songEle.checked);
+
+    document.getElementById("modal-loading")?.classList.remove("is-active");
+
+    toast({
+      message: "登録成功",
+      type: "is-success",
+      pauseOnHover: true,
+      opacity: 5,
+      extraClasses: "mt-6",
+    });
+  });
+</script>

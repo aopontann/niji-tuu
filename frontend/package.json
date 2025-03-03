@@ -1,0 +1,22 @@
+{
+  "name": "niji-tuu",
+  "version": "1.0.0",
+  "description": "歌ってみた動画を告知",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro check && astro build"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.7.0",
+    "@astrojs/cloudflare": "^10.2.6",
+    "astro": "^4.9.2",
+    "bulma-toast": "^2.4.4",
+    "firebase": "^10.12.2",
+    "typescript": "^5.4.5"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.2",
+    "prettier-plugin-astro": "^0.14.0"
+  }
+}
