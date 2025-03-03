@@ -335,7 +335,7 @@ func DiscordAnnounceJob(vid string) error {
 		// キーワードに一致した場合
 		body := []byte(fmt.Sprintf(`{"content": "<@&%s>\nhttps://www.youtube.com/watch?v=%s"}`, role.ID, vid))
 		resp, err := http.Post(
-			role.WenhookURL,
+			role.WebhookURL,
 			"application/json",
 			bytes.NewBuffer(body),
 		)

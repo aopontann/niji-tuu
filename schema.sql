@@ -41,6 +41,7 @@ CREATE TABLE "topics" (
 CREATE TABLE "roles" (
 	"name" varchar(100) NOT NULL,
 	"id" varchar(19) NOT NULL,
+    "webhook_url" varchar(150) NOT NULL,
 	"created_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY ("name")

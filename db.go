@@ -64,7 +64,7 @@ type Role struct {
 
 	Name       string `bun:"name,type:varchar(100),pk"`
 	ID         string `bun:"id,type:varchar(19)"`
-	WenhookURL string `bun:"webhook_url,type:varchar(150)"`
+	WebhookURL string `bun:"webhook_url,type:varchar(150)"`
 }
 
 type UserTopic struct {
