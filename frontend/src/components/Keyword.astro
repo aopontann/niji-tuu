@@ -1,0 +1,82 @@
+<label class="checkbox mb-2">
+  <!-- <input id="checkbox-keyword" type="checkbox" /> -->
+  追加したキーワードを含む動画が公開される1時間前に通知を受け取る
+</label>
+<div id="topic-register-list" class="field is-grouped is-grouped-multiline">
+</div>
+
+<script>
+  import { toast } from "bulma-toast";
+  import { isSupported, getMessaging, getToken } from "firebase/messaging";
+  import {
+    getFCMToken,
+    vapidKey,
+    loadingStatus,
+    createTagElement,
+  } from "../scripts/main";
+
+  const $iosModalEle = document.getElementById("ios-modal-js") as HTMLElement;
+  const topicResiterListEle = document.getElementById(
+    "topic-register-list",
+  ) as HTMLElement;
+
+  const topicListEle = document.getElementById("topic-list");
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    console.log("DOMContentLoaded topic");
+    // 既に購買済みか
+    if (Notification.permission !== "granted") {
+      console.log("not granted");
+      return;
+    }
+    const messaging = getMessaging();
+    const currentToken = await getToken(messaging, { vapidKey });
+
+    try {
+      const topicRegisterListInfo = await fetch(
+        `${import.meta.env.PUBLIC_BASE_URL}/api/topic`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer: ${currentToken}`,
+          },
+        },
+      );
+      if (topicRegisterListInfo.status == 200) {
+        const topicRegisterList: any = await topicRegisterListInfo.json();
+        for (const topic of topicRegisterList) {
+          const controlEle = createTagElement(topic, currentToken);
+          topicResiterListEle.appendChild(controlEle);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      // window.alert("予期しないエラーが発生しました")
+    }
+    loadingStatus.topic = true;
+    if (loadingStatus.song && loadingStatus.info && loadingStatus.topic) {
+      document.getElementById("modal-loading")?.classList.remove("is-active");
+    }
+  });
+
+  // --------------------------- キーワード追加処理 --------------------------- //
+  const addTopicEle = document.createElement("button");
+  addTopicEle.addEventListener("click", () => {
+    if (topicResiterListEle.childElementCount > 5) {
+      toast({
+        message: "5個以上のキーワードは追加できません",
+        type: "is-warning",
+        pauseOnHover: true,
+        opacity: 5,
+        extraClasses: "mt-6",
+      });
+      return;
+    }
+    document.getElementById("modal-topic-list")?.classList.add("is-active");
+  });
+  addTopicEle.id = "add-topic";
+  addTopicEle.className = "tag";
+  addTopicEle.innerText = "キーワード追加";
+  topicResiterListEle.appendChild(addTopicEle);
+  // ----------------------------------------------------------------------- //
+</script>

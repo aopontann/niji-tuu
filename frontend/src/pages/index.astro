@@ -1,0 +1,31 @@
+---
+import Layout from "../layouts/Layout.astro";
+import WelcomeDialog from "../components/WelcomeDialog.astro";
+import IosWarningDialog from "../components/IosWarningDialog.astro";
+import TopicList from "../components/TopicList.astro"
+import Info from "../components/Info.astro";
+import Song from "../components/Song.astro";
+import Keyword from "../components/Keyword.astro";
+import DeleteButton from "../components/DeleteButton.astro";
+import Loader from "../components/Loader.astro";
+---
+
+<script src="../scripts/load.js"></script>
+
+<Layout>
+  <h2>通知設定</h2>
+
+  <WelcomeDialog />
+  <IosWarningDialog />
+  <TopicList />
+
+  <Loader />
+
+  <Song />
+  <Info />
+  <Keyword />
+
+  <div class="buttons mt-5">
+    <DeleteButton />
+  </div>
+</Layout>

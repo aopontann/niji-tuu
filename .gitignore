@@ -5,9 +5,12 @@ oryxBuildBinary
 token.json
 atlas.sum
 
-**/.terraform/*
-*.tfvars
-
+# フロントエンド
 node_modules
 .wrangler
-.dev.vars
+.astro
+dist
+# 一旦config情報ファイルは追加
+config.js
+
+memo.md
