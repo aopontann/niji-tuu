@@ -108,12 +108,6 @@ func CheckNewVideoJob() error {
 			return err
 		}
 
-		// cloud task にTopic告知タスクを登録
-		err = AddTopicTaskToCloudTasks(db, task, videos)
-		if err != nil {
-			return err
-		}
-
 		// discord から通知するタスクを登録
 		discordURL := os.Getenv("DISCORD_URL")
 		for _, v := range videos {
@@ -223,62 +217,6 @@ func SongVideoAnnounceJob(vid string) error {
 			Thumbnail: thumbnail,
 		},
 	)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Topic通知
-func TopicAnnounceJob(vid string, tid int) error {
-	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
-	if err != nil {
-		return err
-	}
-	db, err := NewDB(os.Getenv("DSN"))
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-	fcm := NewFCM()
-
-	// 動画か消されていないかチェック
-	videos, err := yt.Videos([]string{vid})
-	if err != nil {
-		return err
-	}
-	if len(videos) == 0 {
-		slog.Warn("deleted video",
-			slog.String("video_id", vid),
-		)
-		return nil
-	}
-
-	title := videos[0].Snippet.Title
-	thumbnail := videos[0].Snippet.Thumbnails.High.Url
-
-	slog.Info("topic-announce",
-		slog.String("video_id", vid),
-		slog.String("title", title),
-	)
-
-	// 一人以上のユーザが登録しているTopicのみを取得
-	// ユーザ誰一人も登録していないTopicはプッシュ通知を送らない
-	topic, err := db.getTopicWhereUserRegister(tid)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil
-		}
-		slog.Error(err.Error())
-		return err
-	}
-
-	err = fcm.TopicNotification(topic.Name, &NotificationVideo{
-		ID:        vid,
-		Title:     title,
-		Thumbnail: thumbnail,
-	})
 	if err != nil {
 		return err
 	}
@@ -400,32 +338,6 @@ func AddSongTaskToCloudTasks(yt *Youtube, task *Task, videos []youtube.Video) er
 			return err
 		}
 	}
-	return nil
-}
-
-// cloud task にTopic告知タスクを登録
-// 実際のプッシュ通知はユーザに登録されているTopicのみ通知する
-func AddTopicTaskToCloudTasks(db *DB, task *Task, videos []youtube.Video) error {
-	// Topic全件取得
-	topics, err := db.getAllTopics()
-	if err != nil {
-		return err
-	}
-
-	for _, topic := range topics {
-		regPattern := ".*" + topic.Name + ".*"
-		regex, _ := regexp.Compile(regPattern)
-		for _, v := range videos {
-			// キーワードに一致した場合
-			if regex.MatchString(v.Snippet.Title) {
-				err := task.CreateTopicTask(v, topic)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-
 	return nil
 }
 
