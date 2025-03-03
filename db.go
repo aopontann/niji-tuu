@@ -59,6 +59,14 @@ type Topic struct {
 	// UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 }
 
+type Role struct {
+	bun.BaseModel `bun:"table:roles"`
+
+	Name       string `bun:"name,type:varchar(100),pk"`
+	ID         string `bun:"id,type:varchar(19)"`
+	WebhookURL string `bun:"webhook_url,type:varchar(150)"`
+}
+
 type UserTopic struct {
 	bun.BaseModel `bun:"table:user_topics"`
 
@@ -270,4 +278,16 @@ func (db *DB) getTopicWhereUserRegister(topicID int) (Topic, error) {
 		return topic, err
 	}
 	return topic, nil
+}
+
+// discordのロールを取得
+func (db *DB) GetRoles() ([]Role, error) {
+	ctx := context.Background()
+	var roles []Role
+	err := db.Service.NewSelect().Model(&roles).Column("name", "id", "webhook_url").Scan(ctx)
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+	return roles, nil
 }

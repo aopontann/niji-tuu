@@ -175,56 +175,59 @@ func (t *Task) CreateTopicTask(v youtube.Video, topic Topic) error {
 	return nil
 }
 
-// 5分後に動画が登録されているか確認するタスクを登録する
-func (t *Task) CreateExistCheckTask(vid string) error {
+// 放送開始時刻の1時間前に指定URLにHTTPリクエストが送られるタスクを登録
+// 指定URLに動画IDのクエリパラメータを追加する（受け取り側はクエリパラメータから動画IDを取得）
+// 公開時刻が1時間以内の場合、すぐにタスクを実行
+// 公開時刻が実行日より31日以上の場合、タスク登録はできないためエラーになる
+func (t *Task) CreateNewVideoTask(v youtube.Video, url string) error {
 	projectID := os.Getenv("PROJECT_ID")
 	locationID := os.Getenv("LOCATION_ID")
-	queueID := os.Getenv("EXIST_CHECK_QUEUE_ID")
-	url := os.Getenv("EXIST_CHECK_URL")
+	queueID := os.Getenv("NEW_VIDEO_QUEUE_ID")
 	ctx := context.Background()
 
 	queuePath := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, queueID)
 
+	// 実行時刻より過去の時間を指定すると、すぐにタスクが実行される
+	scheduleTime := time.Now()
+	if v.LiveStreamingDetails != nil {
+		vstime, _ := time.Parse("2006-01-02T15:04:05Z", v.LiveStreamingDetails.ScheduledStartTime)
+		scheduleTime = vstime.Add(-time.Hour)
+
+		// 31日以上の場合
+		if time.Until(scheduleTime).Hours()/24 > 30 {
+			slog.Warn("31日以降のタスクは登録できません",
+				slog.String("video_id", v.Id),
+				slog.String("video_title", v.Snippet.Title),
+			)
+			return nil
+		}
+	}
+
 	req := &taskspb.CreateTaskRequest{
 		Parent: queuePath,
 		Task: &taskspb.Task{
-			Name: fmt.Sprintf("%s/tasks/%s", queuePath, vid),
 			MessageType: &taskspb.Task_HttpRequest{
 				HttpRequest: &taskspb.HttpRequest{
 					HttpMethod: taskspb.HttpMethod_POST,
-					Url:        url,
-					Headers: map[string]string{
-						"Content-Type": "application/json",
-					},
+					Url:        fmt.Sprintf("%s?v=%s", url, v.Id),
 				},
 			},
-			ScheduleTime: timestamppb.New(time.Now().Add(5 * time.Minute)),
+			ScheduleTime: timestamppb.New(scheduleTime),
 		},
 	}
 
-	body := &ExistCheckTaskReqBody{ID: vid}
-	j, err := json.Marshal(body)
+	slog.Info("CreateNewVideoTask",
+		slog.String("video_id", v.Id),
+		slog.String("video_title", v.Snippet.Title),
+	)
+
+	_, err := t.Client.CreateTask(ctx, req)
 	if err != nil {
+		slog.Error(err.Error(),
+			slog.String("video_id", v.Id),
+			slog.String("video_title", v.Snippet.Title),
+		)
 		return err
-	}
-
-	req.Task.GetHttpRequest().Body = j
-
-	_, err = t.Client.CreateTask(ctx, req)
-	if err != nil {
-		// 既に登録済みのタスクの場合、警告ログを表示　エラーは返さない
-		if strings.Contains(err.Error(), "AlreadyExists") {
-			slog.Warn(err.Error(),
-				slog.String("video_id", vid),
-			)
-			return nil
-			// 既に登録済みのエラー以外はエラーログを表示　エラーを返す
-		} else {
-			slog.Error(err.Error(),
-				slog.String("video_id", vid),
-			)
-			return err
-		}
 	}
 
 	return nil
