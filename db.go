@@ -50,30 +50,12 @@ type User struct {
 	UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 }
 
-type Topic struct {
-	bun.BaseModel `bun:"table:topics"`
-
-	ID   int    `bun:"id,type:int,pk"`
-	Name string `bun:"name,type:varchar(100)"`
-	// CreatedAt time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
-	// UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
-}
-
 type Role struct {
 	bun.BaseModel `bun:"table:roles"`
 
 	Name       string `bun:"name,type:varchar(100),pk"`
 	ID         string `bun:"id,type:varchar(19)"`
 	WebhookURL string `bun:"webhook_url,type:varchar(150)"`
-}
-
-type UserTopic struct {
-	bun.BaseModel `bun:"table:user_topics"`
-
-	UserToken string    `bun:"user_token,type:varchar(1000),pk"`
-	TopicID   int       `bun:"topic_id,type:int,pk"`
-	CreatedAt time.Time `json:"created_at,omitempty" bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
-	UpdatedAt time.Time `json:"updated_at,omitempty" bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 }
 
 type DB struct {
@@ -254,30 +236,6 @@ func (db *DB) getSongTokens() ([]string, error) {
 	}
 
 	return tokens, nil
-}
-
-// ユーザーが登録しているキーワードのみを取得
-func (db *DB) getAllTopics() ([]Topic, error) {
-	ctx := context.Background()
-	var topics []Topic
-	err := db.Service.NewSelect().Model(&topics).Column("id", "name").Scan(ctx)
-	if err != nil {
-		slog.Error(err.Error())
-		return nil, err
-	}
-	return topics, nil
-}
-
-// topicを情報を取得（ユーザーが登録していないTopicの場合、空を返す）
-func (db *DB) getTopicWhereUserRegister(topicID int) (Topic, error) {
-	ctx := context.Background()
-	var topic Topic
-	subq := db.Service.NewSelect().Model((*UserTopic)(nil)).ColumnExpr("1").Where("topic_id = ?", topicID)
-	err := db.Service.NewSelect().Model((*Topic)(nil)).Where("id = ? AND EXISTS (?)", topicID, subq).Scan(ctx, &topic)
-	if err != nil {
-		return topic, err
-	}
-	return topic, nil
 }
 
 // discordのロールを取得

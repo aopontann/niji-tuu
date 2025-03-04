@@ -52,21 +52,6 @@ func init() {
 		}
 	})
 
-	functions.HTTP("topic", func(w http.ResponseWriter, r *http.Request) {
-		var b TopicTaskReqBody
-		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-			slog.Error(err.Error())
-			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
-			return
-		}
-
-		err := TopicAnnounceJob(b.VID, b.TID)
-		if err != nil {
-			slog.Error(err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	})
-
 	functions.HTTP("notice-discord", func(w http.ResponseWriter, r *http.Request) {
 		vid := r.FormValue("v")
 		if vid == "" {

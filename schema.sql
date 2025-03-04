@@ -30,14 +30,6 @@ CREATE TABLE "users" (
     PRIMARY KEY ("token")
 );
 
-CREATE TABLE "topics" (
-	"id" SERIAL NOT NULL,
-	"name" varchar(100) NOT NULL,
-	"created_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY ("id")
-);
-
 CREATE TABLE "roles" (
 	"name" varchar(100) NOT NULL,
 	"id" varchar(19) NOT NULL,
@@ -45,35 +37,4 @@ CREATE TABLE "roles" (
 	"created_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY ("name")
-);
-
-CREATE TABLE "video_topics" (
-	"id" varchar(100) NOT NULL,
-	"topic_id" varchar(100),
-	"video_id" varchar(11),
-	"created_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY ("id"),
-    FOREIGN KEY ("topic_id") REFERENCES public.topics(id),
-    FOREIGN KEY ("video_id") REFERENCES public.videos(id)
-);
-
-CREATE TABLE "user_topics" (
-	"user_token" varchar(1000),
-	"topic_id" SERIAL,
-	"created_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY ("user_token", "topic_id"),
-    FOREIGN KEY ("user_token") REFERENCES public.users(token),
-    FOREIGN KEY ("topic_id") REFERENCES public.topics(id)
-);
-
-CREATE TABLE "request_topics" (
-	"id" SERIAL NOT NULL,
-	"name" varchar(100) NOT NULL,
-    "user_token" varchar(1000),
-	"created_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY ("id")
-    FOREIGN KEY ("user_token") REFERENCES public.users(token),
 );

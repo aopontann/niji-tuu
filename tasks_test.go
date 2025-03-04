@@ -34,21 +34,6 @@ func TestCreateSongTask(t *testing.T) {
 	}
 }
 
-func TestCreateTopicTask(t *testing.T) {
-	videos := loadTestVideos(t)
-
-	task, err := NewTask()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	topic := &Topic{ID: 1, Name: "歌枠"}
-	err = task.CreateTopicTask(*videos.Items[0], *topic)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestCreateNewVideoTask(t *testing.T) {
 	godotenv.Load(".env")
 	videos := loadTestVideos(t)
