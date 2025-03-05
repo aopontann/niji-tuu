@@ -1,7 +1,6 @@
 package nsa
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
@@ -29,7 +28,7 @@ func init() {
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &ops))
 	slog.SetDefault(logger)
-	
+
 	functions.HTTP("check", func(w http.ResponseWriter, r *http.Request) {
 		err := CheckNewVideoJob()
 		if err != nil {
@@ -38,22 +37,6 @@ func init() {
 		}
 	})
 
-	functions.HTTP("song", func(w http.ResponseWriter, r *http.Request) {
-		var b SongTaskReqBody
-		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-			slog.Error(err.Error())
-			http.Error(w, "リクエストボディが不正です", http.StatusBadRequest)
-			return
-		}
-
-		err := SongVideoAnnounceJob(b.ID)
-		if err != nil {
-			slog.Error(err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	})
-
-	
 	functions.HTTP("song-task", func(w http.ResponseWriter, r *http.Request) {
 		vids := r.FormValue("v")
 		if vids == "" {
@@ -62,14 +45,14 @@ func init() {
 			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}
-		
+
 		err := SongVideoCheck(strings.Split(vids, ","))
 		if err != nil {
 			slog.Error(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
-	
+
 	functions.HTTP("discord-task", func(w http.ResponseWriter, r *http.Request) {
 		vids := r.FormValue("v")
 		if vids == "" {
@@ -78,8 +61,24 @@ func init() {
 			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}
-		
+
 		err := CreateTaskToNoficationByDiscord(strings.Split(vids, ","))
+		if err != nil {
+			slog.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+
+	functions.HTTP("notice-song", func(w http.ResponseWriter, r *http.Request) {
+		vid := r.FormValue("v")
+		if vid == "" {
+			msg := "クエリパラメータ v が指定されていません"
+			slog.Error(msg)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+
+		err := SongVideoAnnounceJob(vid)
 		if err != nil {
 			slog.Error(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -94,7 +93,7 @@ func init() {
 			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}
-	
+
 		err := DiscordAnnounceJob(vid)
 		if err != nil {
 			slog.Error(err.Error())
