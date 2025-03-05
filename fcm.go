@@ -37,6 +37,8 @@ func NewFCM() *FCM {
 	return &FCM{client}
 }
 
+// 指定したトークン宛てにプッシュ通知を送信
+// 送信失敗時、リトライする機能も組み込まれている
 func (c *FCM) Notification(title string, tokens []string, video *NotificationVideo) error {
 	nofication := &messaging.Notification{
 		Title:    title,
