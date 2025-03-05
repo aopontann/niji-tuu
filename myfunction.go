@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
@@ -52,6 +53,39 @@ func init() {
 		}
 	})
 
+	
+	functions.HTTP("song-task", func(w http.ResponseWriter, r *http.Request) {
+		vids := r.FormValue("v")
+		if vids == "" {
+			msg := "クエリパラメータ v が指定されていません"
+			slog.Error(msg)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+		
+		err := SongVideoCheck(strings.Split(vids, ","))
+		if err != nil {
+			slog.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+	
+	functions.HTTP("discord-task", func(w http.ResponseWriter, r *http.Request) {
+		vids := r.FormValue("v")
+		if vids == "" {
+			msg := "クエリパラメータ v が指定されていません"
+			slog.Error(msg)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+		
+		err := CreateTaskToNoficationByDiscord(strings.Split(vids, ","))
+		if err != nil {
+			slog.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+
 	functions.HTTP("notice-discord", func(w http.ResponseWriter, r *http.Request) {
 		vid := r.FormValue("v")
 		if vid == "" {
@@ -60,7 +94,7 @@ func init() {
 			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}
-
+	
 		err := DiscordAnnounceJob(vid)
 		if err != nil {
 			slog.Error(err.Error())
