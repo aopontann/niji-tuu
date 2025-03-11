@@ -363,7 +363,8 @@ func DiscordAnnounceJob(vid string) error {
 	}
 
 	for _, role := range roles {
-		regPattern := ".*" + role.Name + ".*"
+		keywords := strings.Join(role.Keywords, "|")
+		regPattern := ".*" + keywords + ".*"
 		regex, _ := regexp.Compile(regPattern)
 		if !regex.MatchString(title) {
 			continue
