@@ -53,9 +53,10 @@ type User struct {
 type Role struct {
 	bun.BaseModel `bun:"table:roles"`
 
-	Name       string `bun:"name,type:varchar(100),pk"`
-	ID         string `bun:"id,type:varchar(19)"`
-	WebhookURL string `bun:"webhook_url,type:varchar(150)"`
+	Name       string   `bun:"name,type:varchar(100),pk"`
+	ID         string   `bun:"id,type:varchar(19)"`
+	WebhookURL string   `bun:"webhook_url,type:varchar(150)"`
+	Keywords   []string `bun:"keywords,array"`
 }
 
 type DB struct {
@@ -242,7 +243,7 @@ func (db *DB) getSongTokens() ([]string, error) {
 func (db *DB) GetRoles() ([]Role, error) {
 	ctx := context.Background()
 	var roles []Role
-	err := db.Service.NewSelect().Model(&roles).Column("name", "id", "webhook_url").Scan(ctx)
+	err := db.Service.NewSelect().Model(&roles).Column("name", "id", "webhook_url", "keywords").Scan(ctx)
 	if err != nil {
 		slog.Error(err.Error())
 		return nil, err
