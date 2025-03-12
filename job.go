@@ -381,7 +381,6 @@ func DiscordAnnounceJob(vid string) error {
 		regPattern = ".*" + exclusionKeywordsLower + ".*"
 		regex, _ = regexp.Compile(regPattern)
 		if len(role.ExclusionKeywords) != 0 && regex.MatchString(titleLower) {
-			fmt.Println("除外するキーワードに一致するため、除外されました")
 			continue
 		}
 
