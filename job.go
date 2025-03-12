@@ -307,9 +307,13 @@ func CreateTaskToNoficationByDiscord(vids []string) error {
 	}
 
 	// discord から通知するタスクを登録
-	discordURL := os.Getenv("DISCORD_URL")
 	for _, v := range videos {
-		err = task.CreateNewVideoTask(v, discordURL)
+		err = task.Create(&TaskInfo{
+			Video: v,
+			QueueID: os.Getenv("DISCORD_QUEUE_ID"),
+			URL: os.Getenv("DISCORD_URL"),
+			MinutesAgo: time.Hour,
+		})
 		if err != nil {
 			return err
 		}
@@ -359,9 +363,24 @@ func DiscordAnnounceJob(vid string) error {
 	}
 
 	for _, role := range roles {
-		regPattern := ".*" + role.Name + ".*"
+		// 小文字に統一してから一致チェック
+		titleLower := strings.ToLower(title)
+
+		// キーワードに一致するか
+		keywords := strings.Join(role.Keywords, "|")
+		keywordsLower := strings.ToLower(keywords)
+		regPattern := ".*" + keywordsLower + ".*"
 		regex, _ := regexp.Compile(regPattern)
-		if !regex.MatchString(title) {
+		if !regex.MatchString(titleLower) {
+			continue
+		}
+
+		// 除外するキーワードに一致した場合
+		exclusionkeywords := strings.Join(role.ExclusionKeywords, "|")
+		exclusionKeywordsLower := strings.ToLower(exclusionkeywords)
+		regPattern = ".*" + exclusionKeywordsLower + ".*"
+		regex, _ = regexp.Compile(regPattern)
+		if len(role.ExclusionKeywords) != 0 && regex.MatchString(titleLower) {
 			continue
 		}
 
@@ -428,7 +447,12 @@ func AddSongTaskToCloudTasks(yt *Youtube, task *Task, videos []youtube.Video) er
 		if !yt.FindSongKeyword(v) || yt.FindIgnoreKeyword(v) {
 			continue
 		}
-		err := task.CreateSongTask(v)
+		err := task.Create(&TaskInfo{
+			Video: v,
+			QueueID: os.Getenv("SONG_QUEUE_ID"),
+			URL: os.Getenv("SONG_URL"),
+			MinutesAgo: time.Minute * 5,
+		})
 		if err != nil {
 			return err
 		}

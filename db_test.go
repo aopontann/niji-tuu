@@ -1,6 +1,7 @@
 package nsa
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -48,4 +49,20 @@ func TestNotExistsVideoID(t *testing.T) {
 	}
 
 	log.Println(vids)
+}
+
+func TestGetRoles(t *testing.T) {
+	godotenv.Load(".env")
+	db, err := NewDB(os.Getenv("DSN"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	roles, err := db.GetRoles()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, role := range roles {
+		fmt.Println(role)
+	}
 }
