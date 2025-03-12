@@ -36,5 +36,7 @@ CREATE TABLE "roles" (
     "webhook_url" varchar(150) NOT NULL,
 	"created_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "keywords" text[],
+    "exclusion_keywords" text[],
     PRIMARY KEY ("name")
 );
