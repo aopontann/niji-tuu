@@ -363,10 +363,25 @@ func DiscordAnnounceJob(vid string) error {
 	}
 
 	for _, role := range roles {
+		// 小文字に統一してから一致チェック
+		titleLower := strings.ToLower(title)
+
+		// キーワードに一致するか
 		keywords := strings.Join(role.Keywords, "|")
-		regPattern := ".*" + keywords + ".*"
+		keywordsLower := strings.ToLower(keywords)
+		regPattern := ".*" + keywordsLower + ".*"
 		regex, _ := regexp.Compile(regPattern)
-		if !regex.MatchString(title) {
+		if !regex.MatchString(titleLower) {
+			continue
+		}
+
+		// 除外するキーワードに一致した場合
+		exclusionkeywords := strings.Join(role.ExclusionKeywords, "|")
+		exclusionKeywordsLower := strings.ToLower(exclusionkeywords)
+		regPattern = ".*" + exclusionKeywordsLower + ".*"
+		regex, _ = regexp.Compile(regPattern)
+		if len(role.ExclusionKeywords) != 0 && regex.MatchString(titleLower) {
+			fmt.Println("除外するキーワードに一致するため、除外されました")
 			continue
 		}
 
