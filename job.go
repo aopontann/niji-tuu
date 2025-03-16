@@ -438,11 +438,16 @@ func SendMailMaybeSongVideos(yt *Youtube, videos []youtube.Video) error {
 			continue
 		}
 
-		err := NewMail().Subject("歌みた動画判定").Id(v.Id).Title(v.Snippet.Title).Send()
+		body := []byte(fmt.Sprintf(`{"content": "https://www.youtube.com/watch?v=%s"}`, v.Id))
+		resp, err := http.Post(
+			os.Getenv("DISCORD_WEBHOOK_MAYBE_SONG"),
+			"application/json",
+			bytes.NewBuffer(body),
+		)
 		if err != nil {
-			slog.Error(err.Error())
 			return err
 		}
+		resp.Body.Close()
 	}
 	return nil
 }
