@@ -96,6 +96,24 @@ func CheckNewVideoJob() error {
 		slog.Warn("メン限、限定公開の動画が含まれています")
 	}
 
+	// メン限、限定公開の動画情報はAPIの仕様上取得できない
+	// 新着動画の検知はしているが、1つも動画が取得できなかった場合、プレイリスト情報を更新して処理を終了
+	if len(videos) == 0 {
+		// DBのプレイリスト動画数を更新
+		err = retry.Do(
+			func() error {
+				return db.UpdatePlaylistItem(changedPlaylist)
+			},
+			retry.Attempts(3),
+			retry.Delay(1*time.Second),
+		)
+		if err != nil {
+			slog.Error(err.Error())
+			return err
+		}
+		return nil
+	}
+
 	// 確認用ログ
 	for _, v := range videos {
 		slog.Info("new-videos",
