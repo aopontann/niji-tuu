@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v4"
+	"github.com/bwmarrin/discordgo"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-retryablehttp"
 	"google.golang.org/api/youtube/v3"
@@ -369,6 +370,10 @@ func DiscordAnnounceJob(vid string) error {
 		return err
 	}
 	defer db.Close()
+	discord, err := discordgo.New("Bot " + os.Getenv("DISCORD_BOT_TOKEN"))
+	if err != nil {
+		return err
+	}
 
 	// 動画か消されていないかチェック
 	videos, err := yt.Videos([]string{vid})
@@ -421,16 +426,11 @@ func DiscordAnnounceJob(vid string) error {
 		}
 
 		// キーワードに一致した場合
-		body := []byte(fmt.Sprintf(`{"content": "<@&%s>\nhttps://www.youtube.com/watch?v=%s"}`, role.ID, vid))
-		resp, err := http.Post(
-			role.WebhookURL,
-			"application/json",
-			bytes.NewBuffer(body),
-		)
+		content := fmt.Sprintf("<@&%s>\nhttps://www.youtube.com/watch?v=%s", role.ID, vid)
+		_, err := discord.ChannelMessageSend(role.ChannelID, content)
 		if err != nil {
 			return err
 		}
-		resp.Body.Close()
 	}
 
 	return nil
