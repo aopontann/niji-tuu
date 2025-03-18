@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v4"
+	"github.com/bwmarrin/discordgo"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-retryablehttp"
 	"google.golang.org/api/youtube/v3"
@@ -80,10 +81,38 @@ func CheckNewVideoJob() error {
 		return nil
 	}
 
+	// メン限、限定公開で動画情報を取得できない場合があるため、先に動画IDのみをログ表示
+	slog.Info("new-video-ids",
+		slog.String("video_id", strings.Join(newVIDs, ",")),
+	)
+
 	// ログ表示のため動画情報を取得
 	videos, err := yt.Videos(newVIDs)
 	if err != nil {
 		return err
+	}
+
+	// メン限定、限定公開の動画があった場合
+	if len(newVIDs) != len(videos) {
+		slog.Warn("メン限、限定公開の動画が含まれています")
+	}
+
+	// メン限、限定公開の動画情報はAPIの仕様上取得できない
+	// 新着動画の検知はしているが、1つも動画が取得できなかった場合、プレイリスト情報を更新して処理を終了
+	if len(videos) == 0 {
+		// DBのプレイリスト動画数を更新
+		err = retry.Do(
+			func() error {
+				return db.UpdatePlaylistItem(changedPlaylist)
+			},
+			retry.Attempts(3),
+			retry.Delay(1*time.Second),
+		)
+		if err != nil {
+			slog.Error(err.Error())
+			return err
+		}
+		return nil
 	}
 
 	// 確認用ログ
@@ -136,6 +165,9 @@ func CheckNewVideoJob() error {
 
 // 新しい動画がアップロードされた動画IDを含めたHTTPリクエストを送信
 func NewVideoWebHook(vids []string) error {
+	if len(vids) == 0 {
+		return nil
+	}
 	// 登録されたURLにリクエストを送信
 	// リクエストが失敗してもリトライするように
 	// どれかのリクエストが失敗しても、他のリクエストには影響が出ないように
@@ -265,11 +297,16 @@ func SongVideoAnnounceJob(vid string) error {
 	)
 
 	// 動作確認用としてメールを送信
-	err = NewMail().Subject("5分後に公開").Id(vid).Title(title).Send()
+	body := []byte(fmt.Sprintf(`{"content": "https://www.youtube.com/watch?v=%s"}`, vid))
+	resp, err := http.Post(
+		os.Getenv("DISCORD_WEBHOOK_SONG"),
+		"application/json",
+		bytes.NewBuffer(body),
+	)
 	if err != nil {
-		slog.Error(err.Error())
 		return err
 	}
+	resp.Body.Close()
 
 	err = fcm.Notification(
 		"5分後に公開",
@@ -309,9 +346,9 @@ func CreateTaskToNoficationByDiscord(vids []string) error {
 	// discord から通知するタスクを登録
 	for _, v := range videos {
 		err = task.Create(&TaskInfo{
-			Video: v,
-			QueueID: os.Getenv("DISCORD_QUEUE_ID"),
-			URL: os.Getenv("DISCORD_URL"),
+			Video:      v,
+			QueueID:    os.Getenv("DISCORD_QUEUE_ID"),
+			URL:        os.Getenv("DISCORD_URL"),
 			MinutesAgo: time.Hour,
 		})
 		if err != nil {
@@ -333,6 +370,10 @@ func DiscordAnnounceJob(vid string) error {
 		return err
 	}
 	defer db.Close()
+	discord, err := discordgo.New("Bot " + os.Getenv("DISCORD_BOT_TOKEN"))
+	if err != nil {
+		return err
+	}
 
 	// 動画か消されていないかチェック
 	videos, err := yt.Videos([]string{vid})
@@ -385,16 +426,11 @@ func DiscordAnnounceJob(vid string) error {
 		}
 
 		// キーワードに一致した場合
-		body := []byte(fmt.Sprintf(`{"content": "<@&%s>\nhttps://www.youtube.com/watch?v=%s"}`, role.ID, vid))
-		resp, err := http.Post(
-			role.WebhookURL,
-			"application/json",
-			bytes.NewBuffer(body),
-		)
+		content := fmt.Sprintf("<@&%s>\nhttps://www.youtube.com/watch?v=%s", role.ID, vid)
+		_, err := discord.ChannelMessageSend(role.ChannelID, content)
 		if err != nil {
 			return err
 		}
-		resp.Body.Close()
 	}
 
 	return nil
@@ -420,11 +456,16 @@ func SendMailMaybeSongVideos(yt *Youtube, videos []youtube.Video) error {
 			continue
 		}
 
-		err := NewMail().Subject("歌みた動画判定").Id(v.Id).Title(v.Snippet.Title).Send()
+		body := []byte(fmt.Sprintf(`{"content": "https://www.youtube.com/watch?v=%s"}`, v.Id))
+		resp, err := http.Post(
+			os.Getenv("DISCORD_WEBHOOK_MAYBE_SONG"),
+			"application/json",
+			bytes.NewBuffer(body),
+		)
 		if err != nil {
-			slog.Error(err.Error())
 			return err
 		}
+		resp.Body.Close()
 	}
 	return nil
 }
@@ -448,9 +489,9 @@ func AddSongTaskToCloudTasks(yt *Youtube, task *Task, videos []youtube.Video) er
 			continue
 		}
 		err := task.Create(&TaskInfo{
-			Video: v,
-			QueueID: os.Getenv("SONG_QUEUE_ID"),
-			URL: os.Getenv("SONG_URL"),
+			Video:      v,
+			QueueID:    os.Getenv("SONG_QUEUE_ID"),
+			URL:        os.Getenv("SONG_URL"),
 			MinutesAgo: time.Minute * 5,
 		})
 		if err != nil {
