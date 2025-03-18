@@ -55,7 +55,7 @@ type Role struct {
 
 	Name              string   `bun:"name,type:varchar(100),pk"`
 	ID                string   `bun:"id,type:varchar(19)"`
-	WebhookURL        string   `bun:"webhook_url,type:varchar(150)"`
+	ChannelID         string   `bun:"channel_id,type:varchar(30)"`
 	Keywords          []string `bun:"keywords,array"`
 	ExclusionKeywords []string `bun:"exclusion_keywords,array"`
 }
@@ -244,7 +244,7 @@ func (db *DB) getSongTokens() ([]string, error) {
 func (db *DB) GetRoles() ([]Role, error) {
 	ctx := context.Background()
 	var roles []Role
-	err := db.Service.NewSelect().Model(&roles).Column("name", "id", "webhook_url", "keywords", "exclusion_keywords").Scan(ctx)
+	err := db.Service.NewSelect().Model(&roles).Column("name", "id", "channel_id", "keywords", "exclusion_keywords").Scan(ctx)
 	if err != nil {
 		slog.Error(err.Error())
 		return nil, err
