@@ -22,3 +22,6 @@
 ### WEB版にじ通
 開発停止していますがWEB版も公開しています。歌ってみた動画を通知する機能のみ使用できます。※将来廃止予定
 - https://niji-tuu.app
+
+### インフラ
+![にじ通_インフラ](https://github.com/user-attachments/assets/2fa8bb44-40f5-4b9f-a83c-011a51e238f7)
