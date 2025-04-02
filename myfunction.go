@@ -70,6 +70,13 @@ func init() {
 	})
 
 	functions.HTTP("notice-song", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			msg := "POSTメソッドでリクエストしてください"
+			slog.Error(msg)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+
 		vid := r.FormValue("v")
 		if vid == "" {
 			msg := "クエリパラメータ v が指定されていません"
@@ -86,6 +93,13 @@ func init() {
 	})
 
 	functions.HTTP("notice-discord", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			msg := "POSTメソッドでリクエストしてください"
+			slog.Error(msg)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+		
 		vid := r.FormValue("v")
 		if vid == "" {
 			msg := "クエリパラメータ v が指定されていません"
@@ -100,4 +114,6 @@ func init() {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
+
+	functions.HTTP("discord-bot", DiscordWebhook)
 }
