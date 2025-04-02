@@ -125,7 +125,7 @@ func (y *Youtube) Playlists(pids []string) (map[string]Playlist, error) {
 
 func (y *Youtube) PlaylistItems(pid string) ([]string, error) {
 	// 動画IDを格納する文字列型配列を宣言
-	vids := make([]string, 10)	
+	vids := make([]string, 10)
 
 	call := y.Service.PlaylistItems.List([]string{"snippet"}).PlaylistId(pid).MaxResults(10)
 	res, err := call.Do()
