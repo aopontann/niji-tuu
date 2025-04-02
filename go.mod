@@ -1,8 +1,6 @@
 module github.com/aopontann/niji-tuu
 
-go 1.22.0
-
-toolchain go1.23.0
+go 1.23.0
 
 require google.golang.org/api v0.203.0
 
