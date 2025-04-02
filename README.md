@@ -5,6 +5,8 @@
 個人単位で通知設定できますので、特定のライブ、動画のみの通知を受け取ることができます。  
 例：「マインクラフト」のライブ、動画のみを通知するなど    
 
+![image](https://github.com/user-attachments/assets/b65e49c1-2ba0-4da1-aff4-f674fcbf6a94)
+
 ### 使用技術
 - [Go](https://go.dev/)
 - [PostgreSQL](https://www.postgresql.org/)
