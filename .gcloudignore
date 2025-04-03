@@ -21,3 +21,4 @@ testdata
 *_test.go
 README.md
 schema.sql
+cmd
