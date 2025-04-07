@@ -4,8 +4,6 @@ import (
 	"context"
 	"log"
 	"log/slog"
-	"strconv"
-	"strings"
 	"time"
 
 	firebase "firebase.google.com/go/v4"
@@ -95,67 +93,4 @@ func (c *FCM) Notification(title string, tokens []string, video *NotificationVid
 	}
 
 	return nil
-}
-
-func (c *FCM) SetTopic(token string, topic string) error {
-	ctx := context.Background()
-	res, err := c.Client.SubscribeToTopic(ctx, []string{token}, strToByte(topic))
-	if len(res.Errors) != 0 {
-		slog.Warn(res.Errors[0].Reason,
-			slog.String("token", token),
-			slog.String("topic", topic),
-		)
-		return nil
-	}
-	if err != nil {
-		slog.Error(err.Error())
-		return err
-	}
-	return nil
-}
-func (c *FCM) DeleteTopic(token string, topic string) error {
-	ctx := context.Background()
-	res, err := c.Client.UnsubscribeFromTopic(ctx, []string{token}, strToByte(topic))
-	if len(res.Errors) != 0 {
-		slog.Warn(res.Errors[0].Reason,
-			slog.String("token", token),
-			slog.String("topic", topic),
-		)
-		return nil
-	}
-	if err != nil {
-		slog.Error(err.Error())
-	}
-	return nil
-}
-func (c *FCM) TopicNotification(topic string, video *NotificationVideo) error {
-	ctx := context.Background()
-	message := &messaging.Message{
-		Notification: &messaging.Notification{
-			Title:    "キーワード通知",
-			Body:     video.Title,
-			ImageURL: video.Thumbnail,
-		},
-		Topic: strToByte(topic),
-		Webpush: &messaging.WebpushConfig{
-			FCMOptions: &messaging.WebpushFCMOptions{
-				Link: "https://youtu.be/" + video.ID,
-			},
-		},
-	}
-	_, err := c.Client.Send(ctx, message)
-	if err != nil {
-		slog.Error(err.Error())
-		return err
-	}
-	return nil
-}
-
-// topicに日本語が指定できないため、バイト文字列に変換する関数
-func strToByte(text string) string {
-	strList := []string{}
-	for _, b := range []byte(text) {
-		strList = append(strList, strconv.Itoa(int(b)))
-	}
-	return strings.Join(strList, "_")
 }
