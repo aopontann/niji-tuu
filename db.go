@@ -165,11 +165,8 @@ func (db *DB) PlaylistIDs() ([]string, error) {
 func (db *DB) SaveVideos(tx bun.Tx, videos []youtube.Video) error {
 	var Videos []Video
 	for _, v := range videos {
-		var Viewers int64
-		Viewers = 0
 		scheduledStartTime := "1998-01-01 15:04:05" // 例 2022-03-28T11:00:00Z
 		if v.LiveStreamingDetails != nil {
-			Viewers = int64(v.LiveStreamingDetails.ConcurrentViewers)
 			// "2022-03-28 11:00:00"形式に変換
 			rep1 := strings.Replace(v.LiveStreamingDetails.ScheduledStartTime, "T", " ", 1)
 			scheduledStartTime = strings.Replace(rep1, "Z", "", 1)
@@ -180,8 +177,6 @@ func (db *DB) SaveVideos(tx bun.Tx, videos []youtube.Video) error {
 			Title:     v.Snippet.Title,
 			Duration:  v.ContentDetails.Duration,
 			Content:   v.Snippet.LiveBroadcastContent,
-			Viewers:   Viewers,
-			Thumbnail: v.Snippet.Thumbnails.High.Url,
 			StartTime: t,
 			UpdatedAt: time.Now(),
 		})
