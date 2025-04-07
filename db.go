@@ -20,7 +20,7 @@ type Vtuber struct {
 	ID                string    `bun:"id,type:varchar(24),pk"`
 	Name              string    `bun:"name,notnull,type:varchar"`
 	ItemCount         int64     `bun:"item_count,default:0,type:integer"`
-	PlaylistLatestUrl string    `bun:"playlist_latest_url,type:varchar"`
+	PlaylistLatestUrl string    `bun:"playlist_latest_url,type:varchar,default:''"`
 	CreatedAt         time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 	UpdatedAt         time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 }
@@ -31,11 +31,8 @@ type Video struct {
 	ID        string    `bun:"id,type:varchar(11),pk"`
 	Title     string    `bun:"title,notnull,type:varchar"`
 	Duration  string    `bun:"duration,notnull,type:varchar"`
-	Song      bool      `bun:"song,default:false,type:boolean"`
-	Viewers   int64     `bun:"viewers,notnull,type:integer"`
 	Content   string    `bun:"content,notnull,type:varchar"`
 	StartTime time.Time `bun:"scheduled_start_time,type:timestamp"`
-	Thumbnail string    `bun:"thumbnail,notnull,type:varchar"`
 	CreatedAt time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 	UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 }
@@ -54,10 +51,12 @@ type Role struct {
 	bun.BaseModel `bun:"table:roles"`
 
 	Name              string   `bun:"name,type:varchar(100),pk"`
-	ID                string   `bun:"id,type:varchar(19)"`
+	ID                string   `bun:"id,type:varchar(19),notnull"`
 	ChannelID         string   `bun:"channel_id,type:varchar(30)"`
 	Keywords          []string `bun:"keywords,array"`
 	ExclusionKeywords []string `bun:"exclusion_keywords,array"`
+	CreatedAt time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
+	UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 }
 
 type DB struct {
