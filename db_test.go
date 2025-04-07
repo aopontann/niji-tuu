@@ -1,6 +1,8 @@
 package nsa
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -32,6 +34,38 @@ func TestUpdatePlaylistItem(t *testing.T) {
 
 	// DBのプレイリスト動画数を更新
 	err = db.UpdatePlaylistItem(newPlaylists)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
+func TestSaveVideo(t *testing.T) {
+	godotenv.Load(".env.dev")
+	db, err := NewDB(os.Getenv("DSN"))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	videos, err := yt.Videos([]string{"EgaXyUcsM48", "QM68LWmAtJQ"})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	// トランザクション開始
+	ctx := context.Background()
+	tx, err := db.Service.BeginTx(ctx, &sql.TxOptions{})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	err = db.SaveVideos(tx, videos)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	err = tx.Commit()
 	if err != nil {
 		t.Fatal(err.Error())
 	}

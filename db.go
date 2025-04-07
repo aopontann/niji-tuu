@@ -187,7 +187,7 @@ func (db *DB) SaveVideos(tx bun.Tx, videos []youtube.Video) error {
 	}
 
 	ctx := context.Background()
-	_, err := db.Service.NewInsert().Model(&Videos).Ignore().Exec(ctx)
+	_, err := tx.NewInsert().Model(&Videos).Ignore().Exec(ctx)
 	if err != nil {
 		return err
 	}
