@@ -31,7 +31,7 @@ func main() {
 	}
 
 	data := modelsToByte(db, models)
-	os.WriteFile("migration.sql", data, 0777)
+	os.WriteFile("schema.sql", data, 0777)
 }
 
 func modelsToByte(db *bun.DB, models []interface{}) []byte {
