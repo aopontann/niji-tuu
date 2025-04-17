@@ -1,4 +1,4 @@
-package nsa
+package db
 
 import (
 	"context"
@@ -9,31 +9,28 @@ import (
 	"testing"
 
 	"github.com/joho/godotenv"
+
+	"github.com/aopontann/niji-tuu/internal/youtube"
 )
 
-func TestUpdatePlaylistItem(t *testing.T) {
+func TestUpdateVtubers(t *testing.T) {
 	godotenv.Load(".env")
 	db, err := NewDB(os.Getenv("DSN"))
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+
+	var vtubers []Vtuber
+	ctx := context.Background()
+	err = db.Service.NewSelect().Model(&vtubers).Where("id = ?", "UC0g1AE0DOjBYnLhkgoRWN1w").Scan(ctx)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	pids, err := db.PlaylistIDs()
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	newPlaylists, err := yt.Playlists(pids)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	vtubers[0].ItemCount = 9999
 
 	// DBのプレイリスト動画数を更新
-	err = db.UpdatePlaylistItem(newPlaylists)
+	err = db.UpdateVtubers(vtubers, nil)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -45,7 +42,7 @@ func TestSaveVideo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	yt, err := youtube.NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -61,7 +58,7 @@ func TestSaveVideo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	err = db.SaveVideos(tx, videos)
+	err = db.SaveVideos(videos, &tx)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
