@@ -1,4 +1,4 @@
-package main
+package discordcli
 
 import (
 	"fmt"
@@ -7,17 +7,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
 )
-
-// コマンドの登録を行うコマンドラインツール
-func main() {
-	mode := os.Args[1]
-	if mode == "-lc" {
-		ListCommand()
-	}
-	if mode == "-bc" {
-		BulkCommand()
-	}
-}
 
 func ListCommand() {
 	godotenv.Load(".env.dev")

@@ -1,4 +1,4 @@
-package nsa
+package youtube
 
 import (
 	"context"
@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"google.golang.org/api/option"
-	"google.golang.org/api/youtube/v3"
+	yt "google.golang.org/api/youtube/v3"
 )
 
 type Youtube struct {
-	Service *youtube.Service
+	Service *yt.Service
 }
 
 type Feed struct {
@@ -90,9 +90,14 @@ type Feed struct {
 	} `xml:"entry"`
 }
 
+type Playlist struct {
+    ItemCount int64
+    Url       string
+}
+
 func NewYoutube(key string) (*Youtube, error) {
 	ctx := context.Background()
-	yt, err := youtube.NewService(ctx, option.WithAPIKey(key))
+	yt, err := yt.NewService(ctx, option.WithAPIKey(key))
 	if err != nil {
 		return nil, err
 	}
@@ -123,19 +128,21 @@ func (y *Youtube) Playlists(pids []string) (map[string]Playlist, error) {
 	return playlists, nil
 }
 
-func (y *Youtube) PlaylistItems(pid string) ([]string, error) {
+func (y *Youtube) PlaylistItems(pids []string) ([]string, error) {
 	// 動画IDを格納する文字列型配列を宣言
-	vids := make([]string, 10)
+	var vids []string
 
-	call := y.Service.PlaylistItems.List([]string{"snippet"}).PlaylistId(pid).MaxResults(10)
-	res, err := call.Do()
-	if err != nil {
-		slog.Error(err.Error())
-		return []string{}, err
-	}
-
-	for i, item := range res.Items {
-		vids[i] = item.Snippet.ResourceId.VideoId
+	for _, pid := range pids {
+		call := y.Service.PlaylistItems.List([]string{"snippet"}).PlaylistId(pid).MaxResults(10)
+		res, err := call.Do()
+		if err != nil {
+			slog.Error(err.Error())
+			return []string{}, err
+		}
+	
+		for _, item := range res.Items {
+			vids = append(vids, item.Snippet.ResourceId.VideoId)
+		}
 	}
 
 	return vids, nil
@@ -186,8 +193,8 @@ func (y *Youtube) RssFeed(pids []string) ([]string, error) {
 }
 
 // Youtube Data API から動画情報を取得
-func (y *Youtube) Videos(vids []string) ([]youtube.Video, error) {
-	var rlist []youtube.Video
+func (y *Youtube) Videos(vids []string) ([]yt.Video, error) {
+	var rlist []yt.Video
 	for i := 0; i*50 <= len(vids); i++ {
 		var id string
 		if len(vids) > 50*(i+1) {
@@ -210,7 +217,7 @@ func (y *Youtube) Videos(vids []string) ([]youtube.Video, error) {
 }
 
 // 歌ってみた動画のタイトルによく含まれるキーワードが 指定した動画に含まれているか
-func (y *Youtube) FindSongKeyword(video youtube.Video) bool {
+func (y *Youtube) FindSongKeyword(video yt.Video) bool {
 	songWords := []string{"cover", "歌って", "歌わせて", "Original Song", "オリジナル曲", "オリジナル楽曲", "オリジナルソング", "MV", "Music Video"}
 	for _, word := range songWords {
 		if strings.Contains(strings.ToLower(video.Snippet.Title), strings.ToLower(word)) {
@@ -221,7 +228,7 @@ func (y *Youtube) FindSongKeyword(video youtube.Video) bool {
 }
 
 // 無視するキーワードが 指定した動画に含まれているか
-func (y *Youtube) FindIgnoreKeyword(video youtube.Video) bool {
+func (y *Youtube) FindIgnoreKeyword(video yt.Video) bool {
 	for _, word := range []string{"切り抜き", "ラジオ", "くろなん"} {
 		if strings.Contains(strings.ToLower(video.Snippet.Title), strings.ToLower(word)) {
 			return true

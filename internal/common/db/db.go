@@ -1,4 +1,4 @@
-package nsa
+package db
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/uptrace/bun"
@@ -50,13 +51,13 @@ type User struct {
 type Role struct {
 	bun.BaseModel `bun:"table:roles"`
 
-	Name              string   `bun:"name,type:varchar(100),pk"`
-	ID                string   `bun:"id,type:varchar(19),notnull"`
-	ChannelID         string   `bun:"channel_id,type:varchar(30)"`
-	Keywords          []string `bun:"keywords,array"`
-	ExclusionKeywords []string `bun:"exclusion_keywords,array"`
-	CreatedAt time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
-	UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
+	Name              string    `bun:"name,type:varchar(100),pk"`
+	ID                string    `bun:"id,type:varchar(19),notnull"`
+	ChannelID         string    `bun:"channel_id,type:varchar(30)"`
+	Keywords          []string  `bun:"keywords,array"`
+	ExclusionKeywords []string  `bun:"exclusion_keywords,array"`
+	CreatedAt         time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
+	UpdatedAt         time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 }
 
 type DB struct {
@@ -98,6 +99,39 @@ func (db *DB) Playlists() (map[string]Playlist, error) {
 	}
 
 	return playlists, nil
+}
+
+func (db *DB) GetVtubers() ([]Vtuber, error) {
+	var vtubers []Vtuber
+	ctx := context.Background()
+	err := db.Service.NewSelect().Model(&vtubers).Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return vtubers, nil
+}
+
+func (db *DB) UpdateVtubers(vtubers []Vtuber, tx *bun.Tx) error {
+	ctx := context.Background()
+	// updated_atを現在時刻に更新
+	for i := range vtubers {
+		vtubers[i].UpdatedAt = time.Now()
+	}
+
+	return retry.Do(
+		func() error {
+			var err error
+			if tx != nil {
+				_, err = tx.NewUpdate().Model(&vtubers).Bulk().Exec(ctx)
+			} else {
+				_, err = db.Service.NewUpdate().Model(&vtubers).Bulk().Exec(ctx)
+			}
+			return err
+		},
+		retry.Attempts(3),
+		retry.Delay(1*time.Second),
+	)
 }
 
 func (db *DB) UpdatePlaylistItem(playlists map[string]Playlist) error {
@@ -162,7 +196,7 @@ func (db *DB) PlaylistIDs() ([]string, error) {
 }
 
 // 動画情報をDBに登録　登録済みの動画は無視する
-func (db *DB) SaveVideos(tx bun.Tx, videos []youtube.Video) error {
+func (db *DB) SaveVideos(videos []youtube.Video, tx *bun.Tx) error {
 	var Videos []Video
 	for _, v := range videos {
 		scheduledStartTime := "1998-01-01 15:04:05" // 例 2022-03-28T11:00:00Z
@@ -187,12 +221,14 @@ func (db *DB) SaveVideos(tx bun.Tx, videos []youtube.Video) error {
 	}
 
 	ctx := context.Background()
-	_, err := tx.NewInsert().Model(&Videos).Ignore().Exec(ctx)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return retry.Do(
+		func() error {
+			_, err := tx.NewInsert().Model(&Videos).Ignore().Exec(ctx)
+			return err
+		},
+		retry.Attempts(3),
+		retry.Delay(1*time.Second),
+	)
 }
 
 // DBに登録されていない動画リストのみフィルター
@@ -221,7 +257,7 @@ func (db *DB) NotExistsVideoID(vids []string) ([]string, error) {
 }
 
 // songカラムがtrueのトークンリストを取得
-func (db *DB) getSongTokens() ([]string, error) {
+func (db *DB) GetSongTokens() ([]string, error) {
 	// DBからチャンネルID、チャンネルごとの動画数を取得
 	var tokens []string
 	ctx := context.Background()

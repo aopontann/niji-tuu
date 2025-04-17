@@ -3,12 +3,13 @@ package main
 import (
 	"os"
 
-	nt "github.com/aopontann/niji-tuu"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
+	
+	"github.com/aopontann/niji-tuu/internal/common/db"
 )
 
 func main() {
@@ -18,19 +19,16 @@ func main() {
 		panic(err)
 	}
 	sqldb := stdlib.OpenDB(*config)
-	db := bun.NewDB(sqldb, pgdialect.New())
-	if err != nil {
-		panic(err)
-	}
+	bundb := bun.NewDB(sqldb, pgdialect.New())
 
 	models := []interface{}{
-		(*nt.Vtuber)(nil),
-		(*nt.Video)(nil),
-		(*nt.Role)(nil),
-		(*nt.User)(nil),
+		(*db.Vtuber)(nil),
+		(*db.Video)(nil),
+		(*db.Role)(nil),
+		(*db.User)(nil),
 	}
 
-	data := modelsToByte(db, models)
+	data := modelsToByte(bundb, models)
 	os.WriteFile("schema.sql", data, 0777)
 }
 

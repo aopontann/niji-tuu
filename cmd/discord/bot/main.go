@@ -1,4 +1,4 @@
-package main
+package bot
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 
 	godotenv "github.com/joho/godotenv"
 
-	nt "github.com/aopontann/niji-tuu"
+	discordbot "github.com/aopontann/niji-tuu/internal/discord/bot"
 )
 
 // DiscordWebhook をローカルで動作確認するためのエンドポイント
@@ -40,7 +40,7 @@ func main() {
 		}
 	}
 
-	http.HandleFunc("/", nt.DiscordWebhook)
+	http.HandleFunc("/", discordbot.Handler)
 
 	port := os.Getenv("PORT")
 	if port == "" {
