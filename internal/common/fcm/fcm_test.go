@@ -1,10 +1,8 @@
-package nsa
+package fcm
 
 import (
 	"testing"
 )
-
-const token = ""
 
 func TestSend(t *testing.T) {
 	fcm := NewFCM()
