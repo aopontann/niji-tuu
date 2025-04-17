@@ -1,4 +1,4 @@
-package nsa
+package discordbot
 
 import (
 	"context"
@@ -7,12 +7,15 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+
+	"github.com/aopontann/niji-tuu/internal/common/db"
+	"github.com/aopontann/niji-tuu/internal/common/task"
+	"github.com/aopontann/niji-tuu/internal/common/youtube"
 )
 
 type InteractionData struct {
@@ -31,7 +34,7 @@ type InteractionData struct {
 	Type int `json:"type"`
 }
 
-func DiscordWebhook(w http.ResponseWriter, r *http.Request) {
+func Handler(w http.ResponseWriter, r *http.Request) {
 	publicKey := os.Getenv("DISCORD_PUBLIC_KEY")
 	publicKeyBytes, err := hex.DecodeString(publicKey)
 	if err != nil {
@@ -142,12 +145,12 @@ func AddSong(url string) error {
 	// urlが https://www.youtube.com/watch?v=C56ImfpThK0 の形式であるため、=で分割して2つ目の要素を取得
 	vid := strings.Split(url, "=")[1]
 
-	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	yt, err := youtube.NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
 	if err != nil {
 		return err
 	}
 
-	task, err := NewTask()
+	ctask, err := task.NewTask()
 	if err != nil {
 		return err
 	}
@@ -157,7 +160,7 @@ func AddSong(url string) error {
 		return err
 	}
 
-	err = task.Create(&TaskInfo{
+	err = ctask.Create(&task.TaskInfo{
 		Video:      videos[0],
 		QueueID:    os.Getenv("SONG_QUEUE_ID"),
 		URL:        os.Getenv("SONG_URL"),
@@ -192,12 +195,12 @@ func AddKeyword(keyword string, categoryID string) error {
 		return err
 	}
 
-	db, err := NewDB(os.Getenv("DSN"))
+	cdb, err := db.NewDB(os.Getenv("DSN"))
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Service.NewInsert().Model(&Role{
+	_, err = cdb.Service.NewInsert().Model(&db.Role{
 		Name:      keyword,
 		ID:        role.ID,
 		ChannelID: channel.ID,
