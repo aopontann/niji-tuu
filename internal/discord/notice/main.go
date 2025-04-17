@@ -1,4 +1,4 @@
-package notice
+package discordnotice
 
 import (
 	"database/sql"

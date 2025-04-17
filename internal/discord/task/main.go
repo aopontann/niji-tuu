@@ -1,4 +1,4 @@
-package task
+package discordtask
 
 import (
 	"log/slog"
