@@ -114,9 +114,9 @@ func (db *DB) GetVtubers() ([]Vtuber, error) {
 
 func (db *DB) UpdateVtubers(vtubers []Vtuber, tx *bun.Tx) error {
 	ctx := context.Background()
-	// updated_atを現在時刻に更新
-	for i := range vtubers {
-		vtubers[i].UpdatedAt = time.Now()
+	// 0件のとき登録しようとするとエラーが発生するため早期リターンする
+	if len(vtubers) == 0 {
+		return nil
 	}
 
 	return retry.Do(
@@ -223,7 +223,12 @@ func (db *DB) SaveVideos(videos []youtube.Video, tx *bun.Tx) error {
 	ctx := context.Background()
 	return retry.Do(
 		func() error {
-			_, err := tx.NewInsert().Model(&Videos).Ignore().Exec(ctx)
+			var err error
+			if tx != nil {
+				_, err = tx.NewInsert().Model(&Videos).Ignore().Exec(ctx)
+			} else {
+				_, err = db.Service.NewInsert().Model(&Videos).Ignore().Exec(ctx)
+			}
 			return err
 		},
 		retry.Attempts(3),
