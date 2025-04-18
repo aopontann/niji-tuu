@@ -2,19 +2,14 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"log"
 	"os"
 	"testing"
 
-	"github.com/joho/godotenv"
-
-	"github.com/aopontann/niji-tuu/internal/youtube"
+	"github.com/aopontann/niji-tuu/internal/common/youtube"
 )
 
 func TestUpdateVtubers(t *testing.T) {
-	godotenv.Load(".env")
 	db, err := NewDB(os.Getenv("DSN"))
 	if err != nil {
 		t.Fatal(err.Error())
@@ -37,7 +32,7 @@ func TestUpdateVtubers(t *testing.T) {
 }
 
 func TestSaveVideo(t *testing.T) {
-	godotenv.Load(".env.dev")
+	ctx := context.Background()
 	db, err := NewDB(os.Getenv("DSN"))
 	if err != nil {
 		t.Fatal(err.Error())
@@ -52,38 +47,52 @@ func TestSaveVideo(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	// トランザクション開始
-	ctx := context.Background()
-	tx, err := db.Service.BeginTx(ctx, &sql.TxOptions{})
+	err = db.SaveVideos(videos, nil)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	err = db.SaveVideos(videos, &tx)
+
+	count, err := db.Service.NewSelect().Model((*Video)(nil)).Count(ctx)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	err = tx.Commit()
-	if err != nil {
-		t.Fatal(err.Error())
+	if count != 2 {
+		t.Fatalf("expected 2 videos, got %d", count)
 	}
 }
 
 func TestNotExistsVideoID(t *testing.T) {
-	godotenv.Load(".env")
 	db, err := NewDB(os.Getenv("DSN"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	vids, err := db.NotExistsVideoID([]string{"aaa", "bbb"})
+
+	yt, err := youtube.NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	videos, err := yt.Videos([]string{"EgaXyUcsM48"})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	err = db.SaveVideos(videos, nil)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	vids, err := db.NotExistsVideoID([]string{"EgaXyUcsM48", "QM68LWmAtJQ"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	log.Println(vids)
+	if len(vids) == 0 || vids[0] != "QM68LWmAtJQ" {
+		t.Fatalf("expected QM68LWmAtJQ, got %s", vids[0])
+	}
 }
 
 func TestGetRoles(t *testing.T) {
-	godotenv.Load(".env")
 	db, err := NewDB(os.Getenv("DSN"))
 	if err != nil {
 		t.Fatal(err)
