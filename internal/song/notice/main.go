@@ -1,7 +1,6 @@
 package songnotice
 
 import (
-	"bytes"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -10,9 +9,10 @@ import (
 	"github.com/aopontann/niji-tuu/internal/common/db"
 	"github.com/aopontann/niji-tuu/internal/common/fcm"
 	"github.com/aopontann/niji-tuu/internal/common/youtube"
+	"github.com/bwmarrin/discordgo"
 )
 
-func Handler(w http.ResponseWriter, r *http.Request) {
+func HandlerFCM(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		msg := "POSTメソッドでリクエストしてください"
 		slog.Error(msg)
@@ -29,6 +29,29 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := SongVideoAnnounceJob(vid)
+	if err != nil {
+		slog.Error(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func HandlerDiscord(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		msg := "POSTメソッドでリクエストしてください"
+		slog.Error(msg)
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
+
+	vid := r.FormValue("v")
+	if vid == "" {
+		msg := "クエリパラメータ v が指定されていません"
+		slog.Error(msg)
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
+
+	err := NotifyFromDiscord(vid)
 	if err != nil {
 		slog.Error(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -74,18 +97,6 @@ func SongVideoAnnounceJob(vid string) error {
 		slog.String("title", title),
 	)
 
-	// 動作確認用としてメールを送信
-	body := []byte(fmt.Sprintf(`{"content": "https://www.youtube.com/watch?v=%s"}`, vid))
-	resp, err := http.Post(
-		os.Getenv("DISCORD_WEBHOOK_SONG"),
-		"application/json",
-		bytes.NewBuffer(body),
-	)
-	if err != nil {
-		return err
-	}
-	resp.Body.Close()
-
 	err = cfcm.Notification(
 		"5分後に公開",
 		tokens,
@@ -95,6 +106,49 @@ func SongVideoAnnounceJob(vid string) error {
 			Thumbnail: thumbnail,
 		},
 	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// discordから歌動画を通知
+func NotifyFromDiscord(vid string) error {
+	yt, err := youtube.NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		return err
+	}
+
+	discord, err := discordgo.New("Bot " + os.Getenv("DISCORD_BOT_TOKEN"))
+	if err != nil {
+		return err
+	}
+
+	// 動画か消されていないかチェック
+	videos, err := yt.Videos([]string{vid})
+	if err != nil {
+		return err
+	}
+	if len(videos) == 0 {
+		slog.Warn("deleted video",
+			slog.String("video_id", vid),
+		)
+		return nil
+	}
+
+	video := videos[0]
+
+	slog.Info("song-video-announce",
+		slog.String("video_id", video.Id),
+		slog.String("title", video.Snippet.Title),
+	)
+
+	// discordから通知
+	roleID := "1359103811339161701"
+	ChannelID := "1350460034865430592"
+	content := fmt.Sprintf("<@&%s>\nhttps://www.youtube.com/watch?v=%s", roleID, vid)
+	_, err = discord.ChannelMessageSend(ChannelID, content)
 	if err != nil {
 		return err
 	}

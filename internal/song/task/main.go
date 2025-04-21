@@ -151,6 +151,15 @@ func AddSongTaskToCloudTasks(yt *youtube.Youtube, ctask *task.Task, videos []yt.
 		if err != nil {
 			return err
 		}
+		err = ctask.Create(&task.TaskInfo{
+			Video:      v,
+			QueueID:    os.Getenv("SONG_QUEUE_ID"),
+			URL:        os.Getenv("SONG_DISCORD_URL"),
+			MinutesAgo: time.Hour * 1,
+		})
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

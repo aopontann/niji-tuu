@@ -169,6 +169,15 @@ func AddSong(url string) error {
 	if err != nil {
 		return err
 	}
+	err = ctask.Create(&task.TaskInfo{
+		Video:      videos[0],
+		QueueID:    os.Getenv("SONG_QUEUE_ID"),
+		URL:        os.Getenv("SONG_DISCORD_URL"),
+		MinutesAgo: time.Hour * 1,
+	})
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
