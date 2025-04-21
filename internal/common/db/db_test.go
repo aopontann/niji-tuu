@@ -106,3 +106,18 @@ func TestGetRoles(t *testing.T) {
 		fmt.Println(role)
 	}
 }
+
+func TestGetVtubers(t *testing.T) {
+	db, err := NewDB(os.Getenv("DSN"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := db.GetVtubers()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, row := range rows {
+		fmt.Println(row)
+	}
+}
