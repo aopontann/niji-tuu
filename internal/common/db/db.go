@@ -279,9 +279,8 @@ func (db *DB) GetSongTokens() ([]string, error) {
 func (db *DB) GetRoles() ([]Role, error) {
 	ctx := context.Background()
 	var roles []Role
-	err := db.Service.NewSelect().Model(&roles).Column("name", "id", "channel_id", "keywords", "exclusion_keywords").Scan(ctx)
+	err := db.Service.NewSelect().Model(&roles).Scan(ctx)
 	if err != nil {
-		slog.Error(err.Error())
 		return nil, err
 	}
 	return roles, nil
