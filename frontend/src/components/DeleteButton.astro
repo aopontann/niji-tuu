@@ -9,8 +9,6 @@
     } from "firebase/messaging";
     import { vapidKey } from "../scripts/main";
 
-    const topicResiterListEle = document.getElementById("topic-register-list") as HTMLElement;
-
     document.addEventListener("DOMContentLoaded", async () => {
         console.log("DOMContentLoaded delete");
         // 既に購買済みか
@@ -53,12 +51,6 @@
                     window.alert("トークンの削除に失敗しました");
                     // ローディング解除
                     deleteEle.classList.remove("is-loading");
-                } else {
-                    while (topicResiterListEle && topicResiterListEle.childElementCount > 1) {
-                        topicResiterListEle.removeChild(
-                            topicResiterListEle?.firstChild as ChildNode,
-                        );
-                    }
                 }
 
                 // ローディング解除
