@@ -114,7 +114,6 @@ func (db *DB) GetVtubers() ([]Vtuber, error) {
 
 func (db *DB) UpdateVtubers(vtubers []Vtuber, tx *bun.Tx) error {
 	ctx := context.Background()
-	// 0件のとき登録しようとするとエラーが発生するため早期リターンする
 	if len(vtubers) == 0 {
 		return nil
 	}
@@ -281,6 +280,7 @@ func (db *DB) GetRoles() ([]Role, error) {
 	var roles []Role
 	err := db.Service.NewSelect().Model(&roles).Scan(ctx)
 	if err != nil {
+		slog.Error(err.Error())
 		return nil, err
 	}
 	return roles, nil

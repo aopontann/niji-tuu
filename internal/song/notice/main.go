@@ -12,6 +12,11 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+const (  
+    roleID    = "1359103811339161701"  
+    ChannelID = "1350460034865430592"  
+) 
+
 func HandlerFCM(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		msg := "POSTメソッドでリクエストしてください"
@@ -145,8 +150,6 @@ func NotifyFromDiscord(vid string) error {
 	)
 
 	// discordから通知
-	roleID := "1359103811339161701"
-	ChannelID := "1350460034865430592"
 	content := fmt.Sprintf("<@&%s>\nhttps://www.youtube.com/watch?v=%s", roleID, vid)
 	_, err = discord.ChannelMessageSend(ChannelID, content)
 	if err != nil {
