@@ -18,18 +18,18 @@ import (
 
 func Handler(w http.ResponseWriter, r *http.Request) {
 	vids := r.FormValue("v")
-		if vids == "" {
-			msg := "クエリパラメータ v が指定されていません"
-			slog.Error(msg)
-			http.Error(w, msg, http.StatusBadRequest)
-			return
-		}
+	if vids == "" {
+		msg := "クエリパラメータ v が指定されていません"
+		slog.Error(msg)
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
 
-		err := SongVideoCheck(strings.Split(vids, ","))
-		if err != nil {
-			slog.Error(err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+	err := SongVideoCheck(strings.Split(vids, ","))
+	if err != nil {
+		slog.Error(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // 受け取った動画IDが歌動画か解析し、歌動画だった場合はタスクを登録する
@@ -142,13 +142,26 @@ func AddSongTaskToCloudTasks(yt *youtube.Youtube, ctask *task.Task, videos []yt.
 		if !yt.FindSongKeyword(v) || yt.FindIgnoreKeyword(v) {
 			continue
 		}
-		err := ctask.Create(&task.TaskInfo{
+
+		taskInfoFCM := &task.TaskInfo{
 			Video:      v,
 			QueueID:    os.Getenv("SONG_QUEUE_ID"),
 			URL:        os.Getenv("SONG_URL"),
 			MinutesAgo: time.Minute * 5,
-		})
-		if err != nil {
+		}
+		taskInfoDiscord := &task.TaskInfo{
+			Video:      v,
+			QueueID:    os.Getenv("SONG_QUEUE_ID"),
+			URL:        os.Getenv("SONG_DISCORD_URL"),
+			MinutesAgo: time.Hour * 1,
+		}
+
+		if err := ctask.Create(taskInfoFCM); err != nil {
+			slog.Error(err.Error())
+			return err
+		}
+		if err := ctask.Create(taskInfoDiscord); err != nil {
+			slog.Error(err.Error())
 			return err
 		}
 	}

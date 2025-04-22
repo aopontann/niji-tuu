@@ -6,13 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joho/godotenv"
 	"google.golang.org/api/youtube/v3"
 )
 
 func TestCreateTask(t *testing.T) {
 	// videos := loadTestVideos(t)
-	godotenv.Load(".env")
 
 	task, err := NewTask()
 	if err != nil {

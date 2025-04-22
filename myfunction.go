@@ -39,7 +39,8 @@ func init() {
 
 	functions.HTTP("discord-task", discordtask.Handler)
 
-	functions.HTTP("song-notice", songnotice.Handler)
+	functions.HTTP("song-notice", songnotice.HandlerFCM)
+	functions.HTTP("song-notice-discord", songnotice.HandlerDiscord)
 
 	functions.HTTP("discord-notice", discordnotice.Handler)
 

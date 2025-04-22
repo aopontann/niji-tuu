@@ -114,9 +114,8 @@ func (db *DB) GetVtubers() ([]Vtuber, error) {
 
 func (db *DB) UpdateVtubers(vtubers []Vtuber, tx *bun.Tx) error {
 	ctx := context.Background()
-	// updated_atを現在時刻に更新
-	for i := range vtubers {
-		vtubers[i].UpdatedAt = time.Now()
+	if len(vtubers) == 0 {
+		return nil
 	}
 
 	return retry.Do(
@@ -223,7 +222,12 @@ func (db *DB) SaveVideos(videos []youtube.Video, tx *bun.Tx) error {
 	ctx := context.Background()
 	return retry.Do(
 		func() error {
-			_, err := tx.NewInsert().Model(&Videos).Ignore().Exec(ctx)
+			var err error
+			if tx != nil {
+				_, err = tx.NewInsert().Model(&Videos).Ignore().Exec(ctx)
+			} else {
+				_, err = db.Service.NewInsert().Model(&Videos).Ignore().Exec(ctx)
+			}
 			return err
 		},
 		retry.Attempts(3),
@@ -274,7 +278,7 @@ func (db *DB) GetSongTokens() ([]string, error) {
 func (db *DB) GetRoles() ([]Role, error) {
 	ctx := context.Background()
 	var roles []Role
-	err := db.Service.NewSelect().Model(&roles).Column("name", "id", "channel_id", "keywords", "exclusion_keywords").Scan(ctx)
+	err := db.Service.NewSelect().Model(&roles).Scan(ctx)
 	if err != nil {
 		slog.Error(err.Error())
 		return nil, err

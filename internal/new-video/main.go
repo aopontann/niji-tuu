@@ -50,6 +50,23 @@ func CheckNewVideoJob() error {
 		return err
 	}
 
+	rssVIDs, err := GetNewVideoIDsWithRSS(yt, cdb)
+	if err != nil {
+		return err
+	}
+
+	// RSSのみで取得した動画IDを表示（RSSが必要か確認するために一時的に表示）
+	for _, rvid := range rssVIDs {
+		if !slices.Contains(vids, rvid) {
+			slog.Info("RSSのみで取得できた動画がありました")
+		}
+	}
+
+	// 動画IDリストを結合して重複削除処理をする
+	joinedVIDs := append(vids, rssVIDs...)
+	slices.Sort(joinedVIDs)
+	vids = slices.Compact(joinedVIDs)
+
 	// 新着動画がない場合、処理を終了
 	if len(vids) == 0 {
 		// DBのプレイリスト動画数を更新
@@ -127,6 +144,7 @@ func CheckNewVideoJob() error {
 }
 
 // 動画数もしくはプレイリストのURLが変更されたvtuber情報を取得
+// vtuber情報はYouube Data APIから取得した最新の状態が格納されている
 func GetStatusChengedVtubers(yt *youtube.Youtube, cdb *db.DB) ([]db.Vtuber, error) {
 	// DBに登録されているプレイリストの動画数を取得
 	vtuber, err := cdb.GetVtubers()
@@ -149,7 +167,14 @@ func GetStatusChengedVtubers(yt *youtube.Youtube, cdb *db.DB) ([]db.Vtuber, erro
 	for _, vt := range vtuber {
 		pid := strings.Replace(vt.ID, "UC", "UU", 1)
 		if vt.ItemCount != newPlaylists[pid].ItemCount || vt.PlaylistLatestUrl != newPlaylists[pid].Url {
-			chengedVtuber = append(chengedVtuber, vt)
+			chengedVtuber = append(chengedVtuber, db.Vtuber{
+				ID:                vt.ID,
+				Name:              vt.Name,
+				ItemCount:         newPlaylists[pid].ItemCount,
+				PlaylistLatestUrl: newPlaylists[pid].Url,
+				CreatedAt:         vt.CreatedAt,
+				UpdatedAt:         time.Now(),
+			})
 
 			slog.Info("changedPlaylist",
 				slog.String("playlist_id", pid),
@@ -182,16 +207,27 @@ func GetNewVideoIDs(yt *youtube.Youtube, cdb *db.DB, vtubers []db.Vtuber) ([]str
 		return nil, err
 	}
 
-	// RSS から新着動画IDを取得
-	rssVIDs, err := yt.RssFeed(pids)
+	// DBに登録されていない動画のみにフィルター
+	newVIDs, err := cdb.NotExistsVideoID(vids)
 	if err != nil {
 		return nil, err
 	}
 
-	// 動画IDリストを結合して重複削除処理をする
-	joinedVIDs := append(vids, rssVIDs...)
-	slices.Sort(joinedVIDs)
-	vids = slices.Compact(joinedVIDs)
+	return newVIDs, nil
+}
+
+// RSSから全てのチャンネルから新しくアップロードされた動画IDを取得
+func GetNewVideoIDsWithRSS(yt *youtube.Youtube, cdb *db.DB) ([]string, error) {
+	pids, err := cdb.PlaylistIDs()
+	if err != nil {
+		return nil, err
+	}
+
+	// RSS から新着動画IDを取得
+	vids, err := yt.RssFeed(pids)
+	if err != nil {
+		return nil, err
+	}
 
 	// DBに登録されていない動画のみにフィルター
 	newVIDs, err := cdb.NotExistsVideoID(vids)

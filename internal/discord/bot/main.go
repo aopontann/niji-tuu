@@ -160,13 +160,25 @@ func AddSong(url string) error {
 		return err
 	}
 
-	err = ctask.Create(&task.TaskInfo{
+	taskInfoFCM := &task.TaskInfo{
 		Video:      videos[0],
 		QueueID:    os.Getenv("SONG_QUEUE_ID"),
 		URL:        os.Getenv("SONG_URL"),
 		MinutesAgo: time.Minute * 5,
-	})
-	if err != nil {
+	}
+	taskInfoDiscord := &task.TaskInfo{
+		Video:      videos[0],
+		QueueID:    os.Getenv("SONG_QUEUE_ID"),
+		URL:        os.Getenv("SONG_DISCORD_URL"),
+		MinutesAgo: time.Hour * 1,
+	}
+
+	if err := ctask.Create(taskInfoFCM); err != nil {
+		slog.Error(err.Error())
+		return err
+	}
+	if err := ctask.Create(taskInfoDiscord); err != nil {
+		slog.Error(err.Error())
 		return err
 	}
 
