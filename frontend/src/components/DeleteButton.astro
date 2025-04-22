@@ -16,9 +16,9 @@
             console.log("not granted");
             return;
         }
-        const messaging = getMessaging();
-
+        
         try {
+            const messaging = getMessaging();
             const deleteEle = document.getElementById("unsubscription") as HTMLElement;
             deleteEle.addEventListener("click", async () => {
                 console.log("DELETE");
@@ -75,7 +75,8 @@
             });
         } catch (error) {
             console.error(error);
-            // window.alert("予期しないエラーが発生しました")
+            window.alert("予期しないエラーが発生しました")
+            document.getElementById("modal-loading")?.classList.remove("is-active");
         }
     });
 </script>

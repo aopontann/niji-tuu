@@ -23,10 +23,11 @@
       console.log("not granted");
       return;
     }
-    const messaging = getMessaging();
-    const currentToken = await getToken(messaging, { vapidKey });
-
+    
     try {
+      const messaging = getMessaging();
+      const currentToken = await getToken(messaging, { vapidKey });
+
       const resSong = await fetch(
         `${import.meta.env.PUBLIC_BASE_URL}/api/song`,
         {

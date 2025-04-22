@@ -31,6 +31,9 @@
       // 何もしない
     } else if (window.localStorage.getItem("readed-terms") !== "true") {
       modalEle.classList.add("is-active");
+      // 上記のモーダルの上に以下のモーダルを表示するための処理
+      document.getElementById("discord-modal").classList.remove("is-active")
+      document.getElementById("discord-modal").classList.add("is-active")
     }
   })
 
