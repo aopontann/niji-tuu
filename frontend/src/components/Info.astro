@@ -22,10 +22,11 @@
       console.log("not granted");
       return;
     }
-    const messaging = getMessaging();
-    const currentToken = await getToken(messaging, { vapidKey });
 
     try {
+      const messaging = getMessaging();
+      const currentToken = await getToken(messaging, { vapidKey });
+
       const resInfo = await fetch(
         `${import.meta.env.PUBLIC_BASE_URL}/api/info`,
         {
@@ -42,10 +43,11 @@
       }
     } catch (error) {
       console.error(error);
-      // window.alert("予期しないエラーが発生しました")
+      window.alert("予期しないエラーが発生しました")
+      document.getElementById("modal-loading")?.classList.remove("is-active");
     }
     loadingStatus.info = true;
-    if (loadingStatus.song && loadingStatus.info && loadingStatus.topic) {
+    if (loadingStatus.song && loadingStatus.info) {
       document.getElementById("modal-loading")?.classList.remove("is-active");
     }
   });
