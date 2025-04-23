@@ -71,7 +71,7 @@ func DiscordAnnounceJob(vid string) error {
 		slog.String("title", title),
 	)
 
-	roles, err := cdb.GetRoles()
+	keywords, err := cdb.GetKeywords()
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil
@@ -80,31 +80,31 @@ func DiscordAnnounceJob(vid string) error {
 		return err
 	}
 
-	for _, role := range roles {
+	for _, keyword := range keywords {
 		// 小文字に統一してから一致チェック
 		titleLower := strings.ToLower(title)
 
 		// キーワードに一致するか
-		keywords := strings.Join(role.Keywords, "|")
-		keywordsLower := strings.ToLower(keywords)
-		regPattern := ".*" + keywordsLower + ".*"
+		words := strings.Join(keyword.Include, "|")
+		wordsLower := strings.ToLower(words)
+		regPattern := ".*" + wordsLower + ".*"
 		regex, _ := regexp.Compile(regPattern)
 		if !regex.MatchString(titleLower) {
 			continue
 		}
 
-		// 除外するキーワードに一致した場合
-		exclusionkeywords := strings.Join(role.ExclusionKeywords, "|")
-		exclusionKeywordsLower := strings.ToLower(exclusionkeywords)
-		regPattern = ".*" + exclusionKeywordsLower + ".*"
+		// 除外するキーワードに一致した場合通知しない
+		words = strings.Join(keyword.Ignore, "|")
+		wordsLower = strings.ToLower(words)
+		regPattern = ".*" + wordsLower + ".*"
 		regex, _ = regexp.Compile(regPattern)
-		if len(role.ExclusionKeywords) != 0 && regex.MatchString(titleLower) {
+		if len(keyword.Ignore) != 0 && regex.MatchString(titleLower) {
 			continue
 		}
 
 		// キーワードに一致した場合
-		content := fmt.Sprintf("<@&%s>\nhttps://www.youtube.com/watch?v=%s", role.ID, vid)
-		_, err := discord.ChannelMessageSend(role.ChannelID, content)
+		content := fmt.Sprintf("<@&%s>\nhttps://www.youtube.com/watch?v=%s", keyword.RoleID, vid)
+		_, err := discord.ChannelMessageSend(keyword.ChannelID, content)
 		if err != nil {
 			return err
 		}
