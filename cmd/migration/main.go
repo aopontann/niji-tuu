@@ -5,15 +5,13 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/joho/godotenv"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
-	
+
 	"github.com/aopontann/niji-tuu/internal/common/db"
 )
 
 func main() {
-	godotenv.Load(".env.prod")
 	config, err := pgx.ParseConfig(os.Getenv("DSN"))
 	if err != nil {
 		panic(err)
@@ -26,6 +24,7 @@ func main() {
 		(*db.Video)(nil),
 		(*db.Role)(nil),
 		(*db.User)(nil),
+		(*db.Keyword)(nil),
 	}
 
 	data := modelsToByte(bundb, models)

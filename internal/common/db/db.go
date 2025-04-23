@@ -60,6 +60,18 @@ type Role struct {
 	UpdatedAt         time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 }
 
+type Keyword struct {
+	bun.BaseModel `bun:"table:keywords"`
+
+	Name      string    `bun:"name,type:varchar(100),pk"`
+	RoleID    string    `bun:"role_id,type:varchar(19),notnull"`
+	ChannelID string    `bun:"channel_id,type:varchar(30)"`
+	Include   []string  `bun:"include,array"`
+	Ignore    []string  `bun:"ignore,array"`
+	CreatedAt time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
+	UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
+}
+
 type DB struct {
 	Service *bun.DB
 }
@@ -284,4 +296,15 @@ func (db *DB) GetRoles() ([]Role, error) {
 		return nil, err
 	}
 	return roles, nil
+}
+
+func (db *DB) GetKeywords() ([]Keyword, error) {
+	ctx := context.Background()
+	var keywords []Keyword
+	err := db.Service.NewSelect().Model(&keywords).Scan(ctx)
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+	return keywords, nil
 }

@@ -212,11 +212,11 @@ func AddKeyword(keyword string, categoryID string) error {
 		return err
 	}
 
-	_, err = cdb.Service.NewInsert().Model(&db.Role{
+	_, err = cdb.Service.NewInsert().Model(&db.Keyword{
 		Name:      keyword,
-		ID:        role.ID,
+		RoleID:    role.ID,
 		ChannelID: channel.ID,
-		Keywords:  []string{keyword},
+		Include:   []string{keyword},
 	}).Exec(context.Background())
 	if err != nil {
 		return err
