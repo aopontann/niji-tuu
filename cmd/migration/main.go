@@ -22,7 +22,6 @@ func main() {
 	models := []interface{}{
 		(*db.Vtuber)(nil),
 		(*db.Video)(nil),
-		(*db.Role)(nil),
 		(*db.User)(nil),
 		(*db.Keyword)(nil),
 	}

@@ -48,18 +48,6 @@ type User struct {
 	UpdatedAt time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
 }
 
-type Role struct {
-	bun.BaseModel `bun:"table:roles"`
-
-	Name              string    `bun:"name,type:varchar(100),pk"`
-	ID                string    `bun:"id,type:varchar(19),notnull"`
-	ChannelID         string    `bun:"channel_id,type:varchar(30)"`
-	Keywords          []string  `bun:"keywords,array"`
-	ExclusionKeywords []string  `bun:"exclusion_keywords,array"`
-	CreatedAt         time.Time `bun:"created_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
-	UpdatedAt         time.Time `bun:"updated_at,type:TIMESTAMP(0),nullzero,notnull,default:CURRENT_TIMESTAMP"`
-}
-
 type Keyword struct {
 	bun.BaseModel `bun:"table:keywords"`
 
@@ -95,24 +83,6 @@ func (db *DB) Close() error {
 	return db.Service.Close()
 }
 
-// DBに登録されているPlaylistsの動画数を取得
-func (db *DB) Playlists() (map[string]Playlist, error) {
-	var vtubers []Vtuber
-	ctx := context.Background()
-	err := db.Service.NewSelect().Model(&vtubers).Scan(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	playlists := make(map[string]Playlist, 500)
-	for _, vtuber := range vtubers {
-		pid := strings.Replace(vtuber.ID, "UC", "UU", 1)
-		playlists[pid] = Playlist{ItemCount: vtuber.ItemCount, Url: vtuber.PlaylistLatestUrl}
-	}
-
-	return playlists, nil
-}
-
 func (db *DB) GetVtubers() ([]Vtuber, error) {
 	var vtubers []Vtuber
 	ctx := context.Background()
@@ -143,50 +113,6 @@ func (db *DB) UpdateVtubers(vtubers []Vtuber, tx *bun.Tx) error {
 		retry.Attempts(3),
 		retry.Delay(1*time.Second),
 	)
-}
-
-func (db *DB) UpdatePlaylistItem(playlists map[string]Playlist) error {
-	ctx := context.Background()
-	// DBを新しく取得したデータに更新
-	var updateVtubers []Vtuber
-	for pid, playlist := range playlists {
-		cid := strings.Replace(pid, "UU", "UC", 1)
-		updateVtubers = append(updateVtubers, Vtuber{ID: cid, ItemCount: playlist.ItemCount, PlaylistLatestUrl: playlist.Url, UpdatedAt: time.Now()})
-	}
-
-	if len(updateVtubers) == 0 {
-		return nil
-	}
-
-	_, err := db.Service.NewUpdate().Model(&updateVtubers).Column("item_count", "playlist_latest_url", "updated_at").Bulk().Exec(ctx)
-	if err != nil {
-		slog.Error(err.Error())
-		return err
-	}
-
-	return nil
-}
-
-func (db *DB) UpdatePlaylistItemWithTx(tx bun.Tx, playlists map[string]Playlist) error {
-	ctx := context.Background()
-	// DBを新しく取得したデータに更新
-	var updateVtubers []Vtuber
-	for pid, playlist := range playlists {
-		cid := strings.Replace(pid, "UU", "UC", 1)
-		updateVtubers = append(updateVtubers, Vtuber{ID: cid, ItemCount: playlist.ItemCount, PlaylistLatestUrl: playlist.Url, UpdatedAt: time.Now()})
-	}
-
-	if len(updateVtubers) == 0 {
-		return nil
-	}
-
-	_, err := tx.NewUpdate().Model(&updateVtubers).Column("item_count", "playlist_latest_url", "updated_at").Bulk().Exec(ctx)
-	if err != nil {
-		slog.Error(err.Error())
-		return err
-	}
-
-	return nil
 }
 
 func (db *DB) PlaylistIDs() ([]string, error) {
@@ -284,18 +210,6 @@ func (db *DB) GetSongTokens() ([]string, error) {
 	}
 
 	return tokens, nil
-}
-
-// discordのロールを取得
-func (db *DB) GetRoles() ([]Role, error) {
-	ctx := context.Background()
-	var roles []Role
-	err := db.Service.NewSelect().Model(&roles).Scan(ctx)
-	if err != nil {
-		slog.Error(err.Error())
-		return nil, err
-	}
-	return roles, nil
 }
 
 func (db *DB) GetKeywords() ([]Keyword, error) {

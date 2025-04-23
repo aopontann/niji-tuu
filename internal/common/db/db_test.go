@@ -92,21 +92,6 @@ func TestNotExistsVideoID(t *testing.T) {
 	}
 }
 
-func TestGetRoles(t *testing.T) {
-	db, err := NewDB(os.Getenv("DSN"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	roles, err := db.GetRoles()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, role := range roles {
-		fmt.Println(role)
-	}
-}
-
 func TestGetVtubers(t *testing.T) {
 	db, err := NewDB(os.Getenv("DSN"))
 	if err != nil {
