@@ -262,14 +262,14 @@ func NewVideoWebHook(vids []string) error {
 		customURL := fmt.Sprintf("%s?v=%s", url, vidsStr)
 		meg.Go(func() error {
 			resp, err := retryClient.Post(customURL, "application/json", nil)
-			// keepAliveできずにコネクションが再利用されずに終了してしまうため、bodyを読みきる
-			// io.Discardは書き込んだバイトを全て捨てる
-			io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
 			if err != nil {
 				slog.Error(err.Error())
 				return err
 			}
+			defer resp.Body.Close()
+			// keepAliveできずにコネクションが再利用されずに終了してしまうため、bodyを読みきる
+			// io.Discardは書き込んだバイトを全て捨てる
+			io.Copy(io.Discard, resp.Body)
 			return nil
 		})
 	}

@@ -197,6 +197,7 @@ func TestRSSFeed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+	defer cdb.Close()
 
 	pids, err := cdb.PlaylistIDs()
 	if err != nil {

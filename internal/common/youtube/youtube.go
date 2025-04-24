@@ -3,6 +3,7 @@ package youtube
 import (
 	"context"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -155,7 +156,7 @@ func (y *Youtube) PlaylistItems(pids []string) ([]string, error) {
 func (y *Youtube) RssFeed(pids []string) ([]string, error) {
 	mtx := sync.Mutex{}
 	var resIDs []string
-	eg, _ := errgroup.WithContext(context.Background())
+	eg := new(errgroup.Group)
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.RetryMax = 2
@@ -184,7 +185,7 @@ func (y *Youtube) RssFeed(pids []string) ([]string, error) {
 					slog.Int("status_code", resp.StatusCode),
 					slog.String("text", string(body)),
 				)
-				return nil
+				return fmt.Errorf("HTTPステータスコードが200以外: %d", resp.StatusCode)
 			}
 
 			var feed Feed
