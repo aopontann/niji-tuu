@@ -2,11 +2,14 @@ package youtube
 
 import (
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"os"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/aopontann/niji-tuu/internal/common/db"
 	"google.golang.org/api/youtube/v3"
 )
 
@@ -79,6 +82,26 @@ type VideosListResponse struct {
 		TotalResults   int `json:"totalResults,omitempty"`
 		ResultsPerPage int `json:"resultsPerPage,omitempty"`
 	} `json:"pageInfo,omitempty"`
+}
+
+func SetUp() {
+	ops := slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.LevelKey {
+				a.Key = "severity"
+				level := a.Value.Any().(slog.Level)
+				if level == slog.LevelWarn {
+					a.Value = slog.StringValue("WARNING")
+				}
+			}
+
+			return a
+		},
+	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &ops))
+	slog.SetDefault(logger)
 }
 
 func TestYoutubeDemo(t *testing.T) {
@@ -161,4 +184,28 @@ func TestFindSongKeyword(t *testing.T) {
 			t.Log("FALSE:", v.Snippet.Title)
 		}
 	}
+}
+
+func TestRSSFeed(t *testing.T) {
+	SetUp()
+	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	cdb, err := db.NewDB(os.Getenv("DSN"))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	pids, err := cdb.PlaylistIDs()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	vids, err := yt.RssFeed(pids)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	fmt.Println(vids)
 }
