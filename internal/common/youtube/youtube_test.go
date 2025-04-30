@@ -210,3 +210,18 @@ func TestRSSFeed(t *testing.T) {
 	}
 	fmt.Println(vids)
 }
+
+func TestPlaylistItems(t *testing.T) {
+	SetUp()
+	yt, err := NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	pids := []string{"UU0g1AE0DOjBYnLhkgoRWN1w", "abc"}
+	vids, err := yt.PlaylistItems(pids)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	fmt.Println(vids)
+}
