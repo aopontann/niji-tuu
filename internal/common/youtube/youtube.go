@@ -3,7 +3,6 @@ package youtube
 import (
 	"context"
 	"encoding/xml"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -140,8 +139,13 @@ func (y *Youtube) PlaylistItems(pids []string) ([]string, error) {
 		call := y.Service.PlaylistItems.List([]string{"snippet"}).PlaylistId(pid).MaxResults(10)
 		res, err := call.Do()
 		if err != nil {
-			slog.Error(err.Error())
-			return []string{}, err
+			if strings.Contains(err.Error(), "404") {
+				slog.Warn("404エラーが発生しました", slog.String("playlist_id", pid))
+				continue
+			} else {
+				slog.Error(err.Error())
+				return []string{}, err
+			}
 		}
 
 		for _, item := range res.Items {
@@ -179,13 +183,14 @@ func (y *Youtube) RssFeed(pids []string) ([]string, error) {
 			}
 			resp.Body.Close()
 
+			// 500番台は上記でリトライされるため、200以外 かつ 500番台以外のエラーが発生した場合、警告ログを表示する
 			if resp.StatusCode != http.StatusOK {
-				slog.Warn("200以外のステータスコードを取得しました",
+				slog.Warn("RSSフィードの取得に失敗しました",
 					slog.String("playlist_id", pid),
 					slog.Int("status_code", resp.StatusCode),
 					slog.String("text", string(body)),
 				)
-				return fmt.Errorf("HTTPステータスコードが200以外: %d", resp.StatusCode)
+				return nil
 			}
 
 			var feed Feed
