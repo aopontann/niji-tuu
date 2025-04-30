@@ -7,8 +7,11 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/option"
 	yt "google.golang.org/api/youtube/v3"
 )
@@ -91,8 +94,8 @@ type Feed struct {
 }
 
 type Playlist struct {
-    ItemCount int64
-    Url       string
+	ItemCount int64
+	Url       string
 }
 
 func NewYoutube(key string) (*Youtube, error) {
@@ -136,10 +139,15 @@ func (y *Youtube) PlaylistItems(pids []string) ([]string, error) {
 		call := y.Service.PlaylistItems.List([]string{"snippet"}).PlaylistId(pid).MaxResults(10)
 		res, err := call.Do()
 		if err != nil {
-			slog.Error(err.Error())
-			return []string{}, err
+			if strings.Contains(err.Error(), "404") {
+				slog.Warn("404エラーが発生しました", slog.String("playlist_id", pid))
+				continue
+			} else {
+				slog.Error(err.Error())
+				return []string{}, err
+			}
 		}
-	
+
 		for _, item := range res.Items {
 			vids = append(vids, item.Snippet.ResourceId.VideoId)
 		}
@@ -150,46 +158,64 @@ func (y *Youtube) PlaylistItems(pids []string) ([]string, error) {
 
 // RSSから過去30分間にアップロードされた動画IDを取得
 func (y *Youtube) RssFeed(pids []string) ([]string, error) {
-	var vids []string
+	mtx := sync.Mutex{}
+	var resIDs []string
+	eg := new(errgroup.Group)
+
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = 2
+	retryClient.RetryWaitMin = 1 * time.Second
+	retryClient.Logger = slog.Default()
+
 	for _, pid := range pids {
-		resp, err := http.Get("https://www.youtube.com/feeds/videos.xml?playlist_id=" + pid)
-		if err != nil {
-			slog.Error(err.Error(),
-				slog.String("playlist_id", pid),
-			)
-			return nil, err
-		}
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			resp.Body.Close()
-			return nil, err
-		}
-		resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			slog.Warn("200以外のステータスコードを取得しました",
-				slog.String("playlist_id", pid),
-				slog.Int("status_code", resp.StatusCode),
-				slog.String("text", string(body)),
-			)
-			resp.Body.Close()
-			continue
-		}
-
-		var feed Feed
-		if err := xml.Unmarshal([]byte(body), &feed); err != nil {
-			return nil, err
-		}
-
-		for _, entry := range feed.Entry {
-			sst, _ := time.Parse("2006-01-02T15:04:05+00:00", entry.Published)
-			if time.Now().UTC().Sub(sst).Minutes() <= 30 {
-				vids = append(vids, entry.VideoId)
+		pid := pid
+		eg.Go(func() error {
+			resp, err := retryClient.Get("https://www.youtube.com/feeds/videos.xml?playlist_id=" + pid)
+			if err != nil {
+				slog.Error(err.Error())
+				return err
 			}
-		}
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				resp.Body.Close()
+				slog.Error(err.Error())
+				return err
+			}
+			resp.Body.Close()
+
+			// 500番台は上記でリトライされるため、200以外 かつ 500番台以外のエラーが発生した場合、警告ログを表示する
+			if resp.StatusCode != http.StatusOK {
+				slog.Warn("RSSフィードの取得に失敗しました",
+					slog.String("playlist_id", pid),
+					slog.Int("status_code", resp.StatusCode),
+					slog.String("text", string(body)),
+				)
+				return nil
+			}
+
+			var feed Feed
+			if err := xml.Unmarshal([]byte(body), &feed); err != nil {
+				return err
+			}
+
+			for _, entry := range feed.Entry {
+				sst, _ := time.Parse("2006-01-02T15:04:05+00:00", entry.Published)
+				if time.Now().UTC().Sub(sst).Minutes() <= 30 {
+					mtx.Lock()
+					resIDs = append(resIDs, entry.VideoId)
+					mtx.Unlock()
+				}
+			}
+
+			return nil
+		})
 	}
-	return vids, nil
+
+	err := eg.Wait()
+	if err != nil {
+		return nil, err
+	}
+	return resIDs, nil
 }
 
 // Youtube Data API から動画情報を取得
