@@ -103,7 +103,7 @@ func DiscordAnnounceJob(vid string) error {
 		}
 
 		// キーワードに一致した場合
-		content := fmt.Sprintf("<@&%s>\nhttps://www.youtube.com/watch?v=%s", keyword.RoleID, vid)
+		content := fmt.Sprintf("<@&%s>\n%s\nhttps://www.youtube.com/watch?v=%s", keyword.RoleID, title, vid)
 		_, err := discord.ChannelMessageSend(keyword.ChannelID, content)
 		if err != nil {
 			return err
