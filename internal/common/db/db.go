@@ -3,15 +3,19 @@ package db
 import (
 	"context"
 	"log/slog"
+	"net"
+	"os"
 	"slices"
 	"strings"
 	"time"
 
+	"cloud.google.com/go/cloudsqlconn"
 	"github.com/avast/retry-go/v4"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
+
 	"google.golang.org/api/youtube/v3"
 )
 
@@ -62,6 +66,7 @@ type Keyword struct {
 
 type DB struct {
 	Service *bun.DB
+	Cleanup func() error
 }
 
 type Playlist struct {
@@ -70,17 +75,42 @@ type Playlist struct {
 }
 
 func NewDB(dsn string) (*DB, error) {
-	config, err := pgx.ParseConfig(dsn)
+	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
+		slog.Error(err.Error())
 		return nil, err
 	}
-	sqldb := stdlib.OpenDB(*config)
-	db := bun.NewDB(sqldb, pgdialect.New())
-	return &DB{db}, nil
+
+	// Create a new dialer with any options
+	d, err := cloudsqlconn.NewDialer(context.Background())
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+
+	// Tell the driver to use the Cloud SQL Go Connector to create connections
+	config.ConnConfig.DialFunc = func(ctx context.Context, _ string, instance string) (net.Conn, error) {
+		//return d.Dial(ctx, "niji-tuu:asia-northeast1:main")
+		return d.Dial(ctx, os.Getenv("ICN"))
+	}
+
+	// Interact with the driver directly as you normally would
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+
+	sqldb := stdlib.OpenDBFromPool(pool)
+	// call cleanup when you're done with the database connection
+	cleanup := func() error { return d.Close() }
+
+	bundb := bun.NewDB(sqldb, pgdialect.New())
+	return &DB{bundb, cleanup}, nil
 }
 
 func (db *DB) Close() error {
-	return db.Service.Close()
+	return db.Cleanup()
 }
 
 func (db *DB) GetVtubers() ([]Vtuber, error) {
