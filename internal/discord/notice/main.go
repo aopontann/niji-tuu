@@ -21,7 +21,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}
-	
+
 	vid := r.FormValue("v")
 	if vid == "" {
 		msg := "クエリパラメータ v が指定されていません"
@@ -46,7 +46,13 @@ func DiscordAnnounceJob(vid string) error {
 	if err != nil {
 		return err
 	}
-	defer cdb.Close()
+	defer func(cdb *db.DB) {
+		err := cdb.Close()
+		if err != nil {
+
+		}
+	}(cdb)
+
 	discord, err := discordgo.New("Bot " + os.Getenv("DISCORD_BOT_TOKEN"))
 	if err != nil {
 		return err

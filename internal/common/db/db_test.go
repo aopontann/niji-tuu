@@ -7,13 +7,27 @@ import (
 	"testing"
 
 	"github.com/aopontann/niji-tuu/internal/common/youtube"
+	"github.com/joho/godotenv"
 )
+
+func TestMain(m *testing.M) {
+	if err := godotenv.Load("../../../.env.test"); err != nil {
+		panic(err)
+	}
+	m.Run()
+}
 
 func TestUpdateVtubers(t *testing.T) {
 	db, err := NewDB(os.Getenv("DSN"))
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+	defer func(db *DB) {
+		err := db.Close()
+		if err != nil {
+			t.Error(err)
+		}
+	}(db)
 
 	var vtubers []Vtuber
 	ctx := context.Background()
@@ -37,6 +51,13 @@ func TestSaveVideo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+	defer func(db *DB) {
+		err := db.Close()
+		if err != nil {
+			t.Error(err)
+		}
+	}(db)
+
 	yt, err := youtube.NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
 	if err != nil {
 		t.Fatal(err.Error())
@@ -66,6 +87,12 @@ func TestNotExistsVideoID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func(db *DB) {
+		err := db.Close()
+		if err != nil {
+			t.Error(err)
+		}
+	}(db)
 
 	yt, err := youtube.NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
 	if err != nil {
@@ -97,6 +124,13 @@ func TestGetVtubers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func(db *DB) {
+		err := db.Close()
+		if err != nil {
+
+		}
+	}(db)
+
 	rows, err := db.GetVtubers()
 	if err != nil {
 		t.Fatal(err)

@@ -72,7 +72,11 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(pongResp)
+		_, err = w.Write(pongResp)
+		if err != nil {
+			http.Error(w, "Error marshalling response", http.StatusInternalServerError)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -137,7 +141,11 @@ func SendMessage(w http.ResponseWriter, content string) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(resp)
+	_, err = w.Write(resp)
+	if err != nil {
+		http.Error(w, "Error marshalling response", http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -211,6 +219,12 @@ func AddKeyword(keyword string, categoryID string) error {
 	if err != nil {
 		return err
 	}
+	defer func(cdb *db.DB) {
+		err := cdb.Close()
+		if err != nil {
+			slog.Error(err.Error())
+		}
+	}(cdb)
 
 	_, err = cdb.Service.NewInsert().Model(&db.Keyword{
 		Name:      keyword,

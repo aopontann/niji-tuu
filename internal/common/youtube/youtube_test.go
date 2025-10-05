@@ -7,82 +7,10 @@ import (
 	"os"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/aopontann/niji-tuu/internal/common/db"
 	"google.golang.org/api/youtube/v3"
 )
-
-type VideosListResponse struct {
-	Kind  string `json:"kind,omitempty"`
-	Etag  string `json:"etag,omitempty"`
-	Items []struct {
-		Kind    string `json:"kind,omitempty"`
-		Etag    string `json:"etag,omitempty"`
-		ID      string `json:"id,omitempty"`
-		Snippet struct {
-			PublishedAt time.Time `json:"publishedAt,omitempty"`
-			ChannelID   string    `json:"channelId,omitempty"`
-			Title       string    `json:"title,omitempty"`
-			Description string    `json:"description,omitempty"`
-			Thumbnails  struct {
-				Default struct {
-					URL    string `json:"url,omitempty"`
-					Width  int    `json:"width,omitempty"`
-					Height int    `json:"height,omitempty"`
-				} `json:"default,omitempty"`
-				Medium struct {
-					URL    string `json:"url,omitempty"`
-					Width  int    `json:"width,omitempty"`
-					Height int    `json:"height,omitempty"`
-				} `json:"medium,omitempty"`
-				High struct {
-					URL    string `json:"url,omitempty"`
-					Width  int    `json:"width,omitempty"`
-					Height int    `json:"height,omitempty"`
-				} `json:"high,omitempty"`
-				Standard struct {
-					URL    string `json:"url,omitempty"`
-					Width  int    `json:"width,omitempty"`
-					Height int    `json:"height,omitempty"`
-				} `json:"standard,omitempty"`
-				Maxres struct {
-					URL    string `json:"url,omitempty"`
-					Width  int    `json:"width,omitempty"`
-					Height int    `json:"height,omitempty"`
-				} `json:"maxres,omitempty"`
-			} `json:"thumbnails,omitempty"`
-			ChannelTitle         string   `json:"channelTitle,omitempty"`
-			Tags                 []string `json:"tags,omitempty"`
-			CategoryID           string   `json:"categoryId,omitempty"`
-			LiveBroadcastContent string   `json:"liveBroadcastContent,omitempty"`
-			Localized            struct {
-				Title       string `json:"title,omitempty"`
-				Description string `json:"description,omitempty"`
-			} `json:"localized,omitempty"`
-			DefaultAudioLanguage string `json:"defaultAudioLanguage,omitempty"`
-		} `json:"snippet,omitempty"`
-		ContentDetails struct {
-			Duration        string `json:"duration,omitempty"`
-			Dimension       string `json:"dimension,omitempty"`
-			Definition      string `json:"definition,omitempty"`
-			Caption         string `json:"caption,omitempty"`
-			LicensedContent bool   `json:"licensedContent,omitempty"`
-			ContentRating   struct {
-			} `json:"contentRating,omitempty"`
-			Projection string `json:"projection,omitempty"`
-		} `json:"contentDetails,omitempty"`
-		LiveStreamingDetails struct {
-			ActualStartTime    time.Time `json:"actualStartTime,omitempty"`
-			ActualEndTime      time.Time `json:"actualEndTime,omitempty"`
-			ScheduledStartTime time.Time `json:"scheduledStartTime,omitempty"`
-		} `json:"liveStreamingDetails,omitempty"`
-	} `json:"items,omitempty"`
-	PageInfo struct {
-		TotalResults   int `json:"totalResults,omitempty"`
-		ResultsPerPage int `json:"resultsPerPage,omitempty"`
-	} `json:"pageInfo,omitempty"`
-}
 
 func SetUp() {
 	ops := slog.HandlerOptions{
@@ -197,7 +125,12 @@ func TestRSSFeed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	defer cdb.Close()
+	defer func(cdb *db.DB) {
+		err := cdb.Close()
+		if err != nil {
+			t.Error(err)
+		}
+	}(cdb)
 
 	pids, err := cdb.PlaylistIDs()
 	if err != nil {
