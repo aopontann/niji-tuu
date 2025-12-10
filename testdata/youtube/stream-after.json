@@ -1,0 +1,79 @@
+{
+  "kind": "youtube#videoListResponse",
+  "etag": "W6hZj_omGYx7vPpscsrG3qvHI4A",
+  "items": [
+    {
+      "kind": "youtube#video",
+      "etag": "rYuVTpzyxKj0-bYFxWRasbuaCag",
+      "id": "W0ajX8miVgw",
+      "snippet": {
+        "publishedAt": "2025-11-10T16:50:20Z",
+        "channelId": "UCaAu0DXNSPXCZPg6iHVwRVw",
+        "title": "〖深夜ラジオ〗2025年11月11日(火)のにゃルラジ🌙〖猫屋敷美紅 / にじさんじ〗",
+        "description": "皆様こんばんは🌙\n今日も1日お疲れさまでした☕\n\n美紅のノクターにゃルラジオ\n\nあなたの夜に寄り添う深夜のラジオ配信。\n毎日24時から配信しています。\n\nお便りフォームはこちら\nhttps://forms.gle/ANHsnHvGqwQPGyedA\n\nロゴ　︴はる様(https://twitter.com/atelier_uguisu)\n\nサムネイルイラスト　︴空水様(https://x.com/s0ram1zu_/status/1986594455227670777?s=20)\n\n効果音　︴ポケットサウンド様( @pocketse )\n\n#にじさんじ #nijisanji \n❁••┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈••❁\n\n♫各種SNS💐\nX　︴https://twitter.com/Nekoyashiki_39\n今宵、××と夢を見る。(よいゆめ) 公式X　︴https://twitter.com/yoiyume_info\n今宵、××と夢を見る。(よいゆめ)公式チャンネル　︴ @yoiyume_nijisanji  \n\nお便りフォーム　︴https://forms.gle/ANHsnHvGqwQPGyedA\n\n♫よいゆめメンバー💐\n蝸堂みかる　︴@KadouMikaru \n夜牛詩乃　︴@YagyuShino \n十河ののは　︴@TogawaNonoha \n\n♫タグ一覧💐\n配信タグ　︴#みくの遊び場\nファンアートタグ　︴#みくりえいてぃぶ\nサムネイルタグ　︴#さむねこやしき\nボイス感想タグ　︴#みくのおしゃべり\nエゴサタグ　︴#みくみるみる\nアクセサリータグ　︴#みくのおめかし\n\n❁••┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈••❁\n\n♫お約束事💐\n・ほかの方の配信で、ご本人様が言及された場合を除き美紅の名前を出したり話したりしないでください💐\n・配信に関係のないコメントや、誰かが傷ついたり不快になるようなコメントは書かないでください💐\n・毎日お便りを読む配信をしている都合上、同じ話題を取り上げる場合が多々あります！「前もその話してなかった？」といったコメントは、その話題を知らない人を悲しい気持ちにさせてしまう可能性があるのでおやめください💐\n・VTA(バーチャル・タレント・アカデミー)時代についてのコメントは、美紅が話題に出した時以外はしないでください(「VTAのときは○○だったよね」「昔もやってたよね」など)💐\n・ネタバレコメントや指示コメントはしない💐ただし、美紅が助けを求めた際は優しく教えてくださると嬉しいです☺️\n・上記のお約束事を守っていない方がいても、指摘や注意などせずスルーしてください💐\n\n\n皆様と一緒にここを優しくてあたたかな場所にしていきたいなと思っています！\nどうぞよろしくお願いいたします✨\n\n❁••┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈••❁\n\n🌈🕒にじさんじオフィシャルストア🌈🕒\nhttps://shop.nijisanji.jp/1172\n\n✨Welcomegoods＆Voice販売中✨\nhttps://shop.nijisanji.jp/TAG_687\n\n📮お問い合わせ、お手紙はこちらから✉\nhttps://www.nijisanji.jp/contact\n\n※未成年者の視聴者の方々は、下記リンク先の注意事項もご覧ください。\nhttps://www.anycolor.co.jp/notice-for-minors",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/W0ajX8miVgw/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/W0ajX8miVgw/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/W0ajX8miVgw/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/W0ajX8miVgw/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/W0ajX8miVgw/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "猫屋敷美紅 / Nekoyashiki Miku【にじさんじ】",
+        "tags": [
+          "#にじさんじ",
+          "#猫屋敷美紅",
+          "#新人",
+          "#新人VTuber",
+          "#nijisanji",
+          "#VTuber"
+        ],
+        "categoryId": "24",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "ja",
+        "localized": {
+          "title": "〖深夜ラジオ〗2025年11月11日(火)のにゃルラジ🌙〖猫屋敷美紅 / にじさんじ〗",
+          "description": "皆様こんばんは🌙\n今日も1日お疲れさまでした☕\n\n美紅のノクターにゃルラジオ\n\nあなたの夜に寄り添う深夜のラジオ配信。\n毎日24時から配信しています。\n\nお便りフォームはこちら\nhttps://forms.gle/ANHsnHvGqwQPGyedA\n\nロゴ　︴はる様(https://twitter.com/atelier_uguisu)\n\nサムネイルイラスト　︴空水様(https://x.com/s0ram1zu_/status/1986594455227670777?s=20)\n\n効果音　︴ポケットサウンド様( @pocketse )\n\n#にじさんじ #nijisanji \n❁••┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈••❁\n\n♫各種SNS💐\nX　︴https://twitter.com/Nekoyashiki_39\n今宵、××と夢を見る。(よいゆめ) 公式X　︴https://twitter.com/yoiyume_info\n今宵、××と夢を見る。(よいゆめ)公式チャンネル　︴ @yoiyume_nijisanji  \n\nお便りフォーム　︴https://forms.gle/ANHsnHvGqwQPGyedA\n\n♫よいゆめメンバー💐\n蝸堂みかる　︴@KadouMikaru \n夜牛詩乃　︴@YagyuShino \n十河ののは　︴@TogawaNonoha \n\n♫タグ一覧💐\n配信タグ　︴#みくの遊び場\nファンアートタグ　︴#みくりえいてぃぶ\nサムネイルタグ　︴#さむねこやしき\nボイス感想タグ　︴#みくのおしゃべり\nエゴサタグ　︴#みくみるみる\nアクセサリータグ　︴#みくのおめかし\n\n❁••┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈••❁\n\n♫お約束事💐\n・ほかの方の配信で、ご本人様が言及された場合を除き美紅の名前を出したり話したりしないでください💐\n・配信に関係のないコメントや、誰かが傷ついたり不快になるようなコメントは書かないでください💐\n・毎日お便りを読む配信をしている都合上、同じ話題を取り上げる場合が多々あります！「前もその話してなかった？」といったコメントは、その話題を知らない人を悲しい気持ちにさせてしまう可能性があるのでおやめください💐\n・VTA(バーチャル・タレント・アカデミー)時代についてのコメントは、美紅が話題に出した時以外はしないでください(「VTAのときは○○だったよね」「昔もやってたよね」など)💐\n・ネタバレコメントや指示コメントはしない💐ただし、美紅が助けを求めた際は優しく教えてくださると嬉しいです☺️\n・上記のお約束事を守っていない方がいても、指摘や注意などせずスルーしてください💐\n\n\n皆様と一緒にここを優しくてあたたかな場所にしていきたいなと思っています！\nどうぞよろしくお願いいたします✨\n\n❁••┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈••❁\n\n🌈🕒にじさんじオフィシャルストア🌈🕒\nhttps://shop.nijisanji.jp/1172\n\n✨Welcomegoods＆Voice販売中✨\nhttps://shop.nijisanji.jp/TAG_687\n\n📮お問い合わせ、お手紙はこちらから✉\nhttps://www.nijisanji.jp/contact\n\n※未成年者の視聴者の方々は、下記リンク先の注意事項もご覧ください。\nhttps://www.anycolor.co.jp/notice-for-minors"
+        },
+        "defaultAudioLanguage": "ja"
+      },
+      "contentDetails": {
+        "duration": "PT1H37M42S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": true,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "liveStreamingDetails": {
+        "actualStartTime": "2025-11-10T15:00:19Z",
+        "actualEndTime": "2025-11-10T16:38:02Z",
+        "scheduledStartTime": "2025-11-10T15:00:00Z"
+      }
+    }
+  ],
+  "pageInfo": {
+    "totalResults": 1,
+    "resultsPerPage": 1
+  }
+}

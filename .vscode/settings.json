@@ -1,4 +1,0 @@
-{
-    "go.testEnvFile": "/home/aopontan/dev/nijisanji-songs-announcement/.env.test",
-    "go.testFlags": ["-v"]
-}

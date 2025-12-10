@@ -1,40 +1,58 @@
-CREATE TABLE "vtubers" (
-    "id" varchar(24) NOT NULL,
-    "name" varchar NOT NULL,
-    "item_count" integer DEFAULT 0,
-    "playlist_latest_url" varchar DEFAULT '',
-    "created_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY ("id")
+-- DataGripで自動生成したDDL
+create table categories
+(
+    id         varchar(30)                        not null
+        primary key,
+    name       varchar(100)                       not null,
+    created_at datetime default CURRENT_TIMESTAMP not null,
+    updated_at datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP
 );
 
-CREATE TABLE "videos" (
-    "id" varchar(11) NOT NULL,
-    "title" varchar NOT NULL,
-    "duration" varchar NOT NULL,
-    "content" varchar NOT NULL,
-    "scheduled_start_time" timestamp,
-    "created_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY ("id")
+create table keywords
+(
+    role_id        varchar(30)                        not null
+        primary key,
+    name           varchar(100)                       not null,
+    category_id    varchar(30)                        not null,
+    channel_id     varchar(30)                        not null,
+    inclusion_list varchar(1000)     default ''                not null,
+    exclusion_list varchar(1000)     default ''                not null,
+    created_at     datetime default CURRENT_TIMESTAMP not null,
+    updated_at     datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP,
+    constraint name
+        unique (name)
 );
 
-CREATE TABLE "users" (
-    "token" varchar(1000) NOT NULL,
-    "song" boolean NOT NULL DEFAULT false,
-    "info" boolean NOT NULL DEFAULT false,
-    "created_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY ("token")
+create table users
+(
+    token      varchar(300)                         not null
+        primary key,
+    song       tinyint(1) default 0                 not null,
+    info       tinyint(1) default 0                 not null,
+    created_at datetime   default CURRENT_TIMESTAMP not null,
+    updated_at datetime   default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP
 );
 
-CREATE TABLE "keywords" (
-    "name" varchar(100) NOT NULL,
-    "role_id" varchar(19) NOT NULL,
-    "channel_id" varchar(30),
-    "include" VARCHAR[],
-    "ignore" VARCHAR[],
-    "created_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY ("name")
+create table videos
+(
+    id                   varchar(11)                        not null
+        primary key,
+    title                varchar(100)                       not null,
+    duration             varchar(20)                        not null,
+    content              varchar(20)                        not null,
+    scheduled_start_time datetime                           not null,
+    created_at           datetime default CURRENT_TIMESTAMP not null,
+    updated_at           datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP
 );
+
+create table vtubers
+(
+    id                  varchar(24)                            not null
+        primary key,
+    name                varchar(100)                           not null,
+    item_count          int          default 0                 not null,
+    playlist_latest_url varchar(300) default ''                not null,
+    created_at          datetime     default CURRENT_TIMESTAMP not null,
+    updated_at          datetime     default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP
+);
+
