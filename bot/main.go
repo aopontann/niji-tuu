@@ -379,9 +379,13 @@ var songAddCommand = tempest.Command{
 		err = AddSong(url.(string))
 		if err != nil {
 			slog.Error(err.Error())
-			itx.SendLinearReply(errorMessage, true)
+			itx.SendFollowUp(tempest.ResponseMessageData{
+				Content: errorMessage,
+			}, true)
 		}
-		itx.SendLinearReply(successMessage, true)
+		itx.SendFollowUp(tempest.ResponseMessageData{
+			Content: successMessage,
+		}, true)
 	},
 }
 
@@ -409,13 +413,17 @@ var keywordAddCommand = tempest.Command{
 			return
 		}
 		categoryID, _ := itx.GetOptionValue("category_id")
-		keyword, _ := itx.GetOptionValue("category_id")
+		keyword, _ := itx.GetOptionValue("keyword")
 		err = AddKeyword(keyword.(string), categoryID.(string))
 		if err != nil {
 			slog.Error(err.Error())
-			itx.SendLinearReply(errorMessage, true)
+			itx.SendFollowUp(tempest.ResponseMessageData{
+				Content: errorMessage,
+			}, true)
 		}
-		itx.SendLinearReply(successMessage, true)
+		itx.SendFollowUp(tempest.ResponseMessageData{
+			Content: successMessage,
+		}, true)
 	},
 }
 
