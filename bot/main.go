@@ -365,7 +365,7 @@ var songAddCommand = tempest.Command{
 		{
 			Name:        "url",
 			Description: "動画のURL",
-			Type:        tempest.INTEGER_OPTION_TYPE,
+			Type:        tempest.STRING_OPTION_TYPE,
 			Required:    true,
 		},
 	},
@@ -392,13 +392,13 @@ var keywordAddCommand = tempest.Command{
 		{
 			Name:        "category_id",
 			Description: "カテゴリID",
-			Type:        tempest.INTEGER_OPTION_TYPE,
+			Type:        tempest.STRING_OPTION_TYPE,
 			Required:    true,
 		},
 		{
 			Name:        "keyword",
 			Description: "キーワード",
-			Type:        tempest.INTEGER_OPTION_TYPE,
+			Type:        tempest.STRING_OPTION_TYPE,
 			Required:    true,
 		},
 	},
