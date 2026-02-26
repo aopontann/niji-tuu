@@ -164,7 +164,7 @@ func (y *Youtube) RssFeed(pids []string) ([]string, error) {
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.RetryMax = 2
-	retryClient.RetryWaitMin = 1 * time.Second
+	retryClient.RetryWaitMin = 5 * time.Second
 	retryClient.Logger = slog.Default()
 
 	for _, pid := range pids {
