@@ -251,8 +251,8 @@ func SendMaybeSongVideosForDiscord(videos []youtube.Video) error {
 		if err != nil {
 			return err
 		}
-		if resp.StatusCode != 201 {
-			slog.Error("201以外のステータスコードを取得しました",
+		if resp.StatusCode != 204 {
+			slog.Error("204以外のステータスコードを取得しました",
 				slog.Int("code", resp.StatusCode),
 			)
 			return err
