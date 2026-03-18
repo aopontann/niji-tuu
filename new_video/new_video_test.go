@@ -286,3 +286,13 @@ func TestCheckNewVideoJob(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckNewVideoJobSearchMode(t *testing.T) {
+	t.Setenv("SONG_TASK_URL", "https://example.com/")
+	t.Setenv("DISCORD_TASK_URL", "https://example.com/")
+
+	err := CheckNewVideoJobSearchMode()
+	if err != nil {
+		t.Error(err)
+	}
+}

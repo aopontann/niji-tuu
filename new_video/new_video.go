@@ -24,7 +24,12 @@ func main() {
 	db = internal.NewDB(os.Getenv("DSN"))
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) {
-		err := CheckNewVideoJob()
+		var err error
+		if r.URL.Query().Get("mode") == "search" {
+			err = CheckNewVideoJobSearchMode()
+		} else {
+			err = CheckNewVideoJob()
+		}
 		if err != nil {
 			slog.Error(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -65,23 +70,23 @@ func CheckNewVideoJob() error {
 		return err
 	}
 
-	rssVIDs, err := GetNewVideoIDsWithRSS()
-	if err != nil {
-		return err
-	}
-
-	// RSSのみで取得した動画IDを表示（RSSが必要か確認するために一時的に表示）
-	for _, rvid := range rssVIDs {
-		if !slices.Contains(vids, rvid) {
-			slog.Info("RSSのみで取得できた動画がありました",
-				slog.String("vid", rvid))
-		}
-	}
-
-	// 動画IDリストを結合して重複削除処理をする
-	joinedVIDs := append(vids, rssVIDs...)
-	slices.Sort(joinedVIDs)
-	vids = slices.Compact(joinedVIDs)
+	//rssVIDs, err := GetNewVideoIDsWithRSS()
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//// RSSのみで取得した動画IDを表示（RSSが必要か確認するために一時的に表示）
+	//for _, rvid := range rssVIDs {
+	//	if !slices.Contains(vids, rvid) {
+	//		slog.Info("RSSのみで取得できた動画がありました",
+	//			slog.String("vid", rvid))
+	//	}
+	//}
+	//
+	//// 動画IDリストを結合して重複削除処理をする
+	//joinedVIDs := append(vids, rssVIDs...)
+	//slices.Sort(joinedVIDs)
+	//vids = slices.Compact(joinedVIDs)
 
 	// トランザクション開始
 	tx := db.MustBegin()
@@ -175,6 +180,57 @@ func CheckNewVideoJob() error {
 	}
 
 	err = NewVideoWebHook(vids)
+	return err
+}
+
+// CheckNewVideoJobSearchMode CheckNewVideoJobとは違いYoutube Data APIのSearchで新着動画を取得する
+func CheckNewVideoJobSearchMode() error {
+	yt, err := internal.NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		return err
+	}
+
+	var cids []string
+	err = db.Select(&cids, "SELECT id FROM vtubers")
+	if err != nil {
+		return err
+	}
+
+	vids, err := yt.Search(cids)
+	if err != nil {
+		return err
+	}
+	notExistsID, err := FilterNotExistsVideoIDs(vids)
+	if err != nil {
+		return err
+	}
+
+	videos, err := yt.Videos(notExistsID)
+	if err != nil {
+		return err
+	}
+	for _, v := range videos {
+		slog.Info("Search で取得した動画があります",
+			slog.String("video_id", v.Id),
+			slog.String("title", v.Snippet.Title),
+		)
+	}
+
+	tx := db.MustBegin()
+	err = SaveVideos(videos, tx)
+	if err != nil {
+		slog.Error(err.Error())
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			slog.Error(err.Error())
+		}
+		return err
+	}
+	if commitErr := tx.Commit(); commitErr != nil {
+		slog.Error(commitErr.Error())
+		return commitErr
+	}
+
+	err = NewVideoWebHook(notExistsID)
 	return err
 }
 

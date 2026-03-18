@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -240,4 +241,30 @@ func (y *Youtube) Videos(vids []string) ([]youtube.Video, error) {
 		}
 	}
 	return rlist, nil
+}
+
+func (y *Youtube) Search(cid []string) ([]string, error) {
+	var vids []string
+	afterTime := time.Now().UTC().Add(-30 * time.Minute).Format(time.RFC3339)
+	call := y.Service.Search.List([]string{"snippet"}).Type("video").EventType("upcoming").MaxResults(50).Q("にじさんじ").PublishedAfter(afterTime)
+	res, err := call.Do()
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+
+	for _, item := range res.Items {
+		// にじさんじライバーがアップロードした動画か
+		if !slices.Contains(cid, item.Snippet.ChannelId) {
+			continue
+		}
+		vids = append(vids, item.Id.VideoId)
+	}
+
+	slog.Info("youtube data api search",
+		slog.String("vids", strings.Join(vids, ",")),
+		slog.String("after_time", afterTime),
+	)
+
+	return vids, nil
 }
