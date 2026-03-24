@@ -9,8 +9,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var db *sqlx.DB
-
 //func init() {
 //	var err error
 //	if os.Getenv("ENV") != "prod" {
@@ -94,8 +92,10 @@ type Tables struct {
 
 const (
 	InsertKeywordsQuery = "INSERT INTO keywords (role_id, name, category_id, channel_id, inclusion_list) VALUES (:role_id, :name, :category_id, :channel_id, :inclusion_list)"
-	InsertVideosQuery   = "INSERT IGNORE videos (id, title, duration, content, scheduled_start_time) VALUES (:id, :title, :duration, :content, :scheduled_start_time)"
+	InsertVideosQuery   = "INSERT INTO videos (id, title, duration, content, scheduled_start_time) VALUES (:id, :title, :duration, :content, :scheduled_start_time)"
+	UpsertVideosQuery   = "INSERT INTO videos (id, title, duration, content, scheduled_start_time) VALUES (:id, :title, :duration, :content, :scheduled_start_time) ON DUPLICATE KEY UPDATE title = :title, duration = :duration, content = :content, scheduled_start_time = :scheduled_start_time"
 	UpdateVtubersQuery  = "UPDATE vtubers SET item_count = :item_count, playlist_latest_url = :playlist_latest_url WHERE id = :id"
+	UpdateVideosQuery   = "UPDATE videos SET title = :title, Duration = :duration, Content = :content, scheduled_start_time = :scheduled_start_time WHERE id = :id"
 )
 
 // テストで使用
@@ -103,7 +103,7 @@ const (
 	InsertVtubersQuery = "INSERT INTO vtubers (id, name, item_count, playlist_latest_url) VALUES (:id, :name, :item_count, :playlist_latest_url)"
 )
 
-func SetUp(t Tables) error {
+func SetUp(db *sqlx.DB, t Tables) error {
 	if len(t.Vtubers) != 0 {
 		_, err := db.NamedExec(InsertVtubersQuery, t.Vtubers)
 		if err != nil {
@@ -119,7 +119,7 @@ func SetUp(t Tables) error {
 	return nil
 }
 
-func CleanUp() error {
+func CleanUp(db *sqlx.DB) error {
 	_, err := db.Exec("TRUNCATE TABLE vtubers")
 	if err != nil {
 		return err
