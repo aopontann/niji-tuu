@@ -57,10 +57,10 @@ func TestGetStatusChangedVtubers(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := internal.CleanUp(); err != nil {
+			if err := internal.CleanUp(db); err != nil {
 				t.Error(err)
 			}
-			if err := internal.SetUp(test.PrepareTables); err != nil {
+			if err := internal.SetUp(db, test.PrepareTables); err != nil {
 				t.Error(err)
 			}
 			vtubers, err := GetStatusChangedVtubers()
@@ -90,10 +90,10 @@ func TestGetNewVideoIDs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := internal.CleanUp(); err != nil {
+			if err := internal.CleanUp(db); err != nil {
 				t.Error(err)
 			}
-			if err := internal.SetUp(test.PrepareTables); err != nil {
+			if err := internal.SetUp(db, test.PrepareTables); err != nil {
 				t.Error(err)
 			}
 
@@ -125,10 +125,10 @@ func TestGetNewVideoIDsWithRSS(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := internal.CleanUp(); err != nil {
+			if err := internal.CleanUp(db); err != nil {
 				t.Error(err)
 			}
-			if err := internal.SetUp(test.PrepareTables); err != nil {
+			if err := internal.SetUp(db, test.PrepareTables); err != nil {
 				t.Error(err)
 			}
 			vids, err := GetNewVideoIDsWithRSS()
@@ -163,10 +163,10 @@ func TestFilterNotExistsVideoIDs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := internal.CleanUp(); err != nil {
+			if err := internal.CleanUp(db); err != nil {
 				t.Error(err)
 			}
-			if err := internal.SetUp(test.PrepareTables); err != nil {
+			if err := internal.SetUp(db, test.PrepareTables); err != nil {
 				t.Error(err)
 			}
 			vids, err := FilterNotExistsVideoIDs(test.vids)
@@ -189,7 +189,7 @@ func TestSaveVideos(t *testing.T) {
 	}{
 		{
 			name: "正常",
-			vids: []string{"o4drd_kRVAs", "D_aIT77rLGc"},
+			vids: []string{"o4drd_kRVAs", "D_aIT77rLGc", "N_J90iSiB7s"},
 			PrepareTables: internal.Tables{
 				Videos: []internal.Video{
 					{ID: "BzArAI_gm7Y", Title: "たかしの二次会", Duration: "P0D", Content: "upcoming", ScheduledStartTime: time.Now().UTC()},
@@ -197,7 +197,7 @@ func TestSaveVideos(t *testing.T) {
 			},
 		},
 		{
-			name: "重複",
+			name: "更新",
 			vids: []string{"BzArAI_gm7Y"},
 			PrepareTables: internal.Tables{
 				Videos: []internal.Video{
@@ -209,12 +209,16 @@ func TestSaveVideos(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := internal.CleanUp(); err != nil {
+			if err := internal.CleanUp(db); err != nil {
 				t.Error(err)
 			}
-			if err := internal.SetUp(test.PrepareTables); err != nil {
+			if err := internal.SetUp(db, test.PrepareTables); err != nil {
 				t.Error(err)
 			}
+
+			// 更新でcreated_atとupdated_atの差を確認したいので、数秒待機
+			time.Sleep(2 * time.Second)
+
 			yt, err := internal.NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
 			if err != nil {
 				t.Error(err)
@@ -225,7 +229,7 @@ func TestSaveVideos(t *testing.T) {
 			}
 
 			tx := db.MustBegin()
-			err = SaveVideos(videos, tx)
+			err = SaveVideos(ConvertVideos(videos), tx)
 			if err != nil {
 				t.Error(err)
 			}
@@ -273,10 +277,10 @@ func TestCheckNewVideoJob(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := internal.CleanUp(); err != nil {
+			if err := internal.CleanUp(db); err != nil {
 				t.Error(err)
 			}
-			if err := internal.SetUp(test.PrepareTables); err != nil {
+			if err := internal.SetUp(db, test.PrepareTables); err != nil {
 				t.Error(err)
 			}
 			err := CheckNewVideoJob()

@@ -11,11 +11,9 @@ import (
 	"time"
 
 	"github.com/aopontann/niji-tuu/internal"
-	"github.com/avast/retry-go/v4"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/jmoiron/sqlx"
-	"google.golang.org/api/youtube/v3"
 )
 
 var db *sqlx.DB
@@ -30,6 +28,14 @@ func main() {
 		} else {
 			err = CheckNewVideoJob()
 		}
+		if err != nil {
+			slog.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+
+	mux.HandleFunc("POST /update", func(w http.ResponseWriter, r *http.Request) {
+		err := UpdateVideoJob()
 		if err != nil {
 			slog.Error(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -164,7 +170,7 @@ func CheckNewVideoJob() error {
 		return err
 	}
 	// 動画情報をDBに登録
-	err = SaveVideos(videos, tx)
+	err = SaveVideos(ConvertVideos(videos), tx)
 	if err != nil {
 		slog.Error(err.Error())
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
@@ -217,7 +223,7 @@ func CheckNewVideoJobSearchMode() error {
 	}
 
 	tx := db.MustBegin()
-	err = SaveVideos(videos, tx)
+	err = SaveVideos(ConvertVideos(videos), tx)
 	if err != nil {
 		slog.Error(err.Error())
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
@@ -387,38 +393,16 @@ func UpdateVtubers(vtubers []internal.Vtuber, tx *sqlx.Tx) error {
 	return nil
 }
 
-func SaveVideos(videos []youtube.Video, tx *sqlx.Tx) error {
-	var Videos []internal.Video
+func SaveVideos(videos []internal.Video, tx *sqlx.Tx) error {
 	for _, v := range videos {
-		scheduledStartTime := "1998-01-01 15:04:05" // 例 2022-03-28T11:00:00Z
-		if v.LiveStreamingDetails != nil {
-			// "2022-03-28 11:00:00"形式に変換
-			rep1 := strings.Replace(v.LiveStreamingDetails.ScheduledStartTime, "T", " ", 1)
-			scheduledStartTime = strings.Replace(rep1, "Z", "", 1)
-		}
-		t, _ := time.Parse("2006-01-02 15:04:05", scheduledStartTime)
-		Videos = append(Videos, internal.Video{
-			ID:                 v.Id,
-			Title:              v.Snippet.Title,
-			Duration:           v.ContentDetails.Duration,
-			Content:            v.Snippet.LiveBroadcastContent,
-			ScheduledStartTime: t,
-			UpdatedAt:          time.Now(),
-		})
-	}
-
-	if len(Videos) == 0 {
-		return nil
-	}
-
-	return retry.Do(
-		func() error {
-			_, err := tx.NamedExec(internal.InsertVideosQuery, Videos)
+		_, err := tx.NamedExec(internal.UpsertVideosQuery, v)
+		if err != nil {
+			slog.Error(err.Error())
 			return err
-		},
-		retry.Attempts(3),
-		retry.Delay(1*time.Second),
-	)
+		}
+	}
+
+	return nil
 }
 
 // NewVideoWebHook 新しい動画がアップロードされた動画IDを含めたHTTPリクエストを送信
