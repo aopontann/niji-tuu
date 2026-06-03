@@ -108,6 +108,12 @@ func main() {
 				slog.Error(err.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
+		case "instagram":
+			err := NotifySongOnInstagram(vid)
+			if err != nil {
+				slog.Error(err.Error())
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 		default:
 			m := "存在しないパスを指定しています"
 			slog.Warn(m)
@@ -216,10 +222,16 @@ func RegisterNotifySongTask(videos []youtube.Video) error {
 			URL:        os.Getenv("HOST") + "/song/notify/discord",
 			MinutesAgo: time.Hour * 1,
 		}
-		taskInfoTwitter := &internal.TaskInfo{
+		//taskInfoTwitter := &internal.TaskInfo{
+		//	Video:      v,
+		//	QueueID:    "song-queue",
+		//	URL:        os.Getenv("HOST") + "/song/notify/twitter",
+		//	MinutesAgo: time.Minute * 5,
+		//}
+		taskInfoInstagram := &internal.TaskInfo{
 			Video:      v,
 			QueueID:    "song-queue",
-			URL:        os.Getenv("HOST") + "/song/notify/twitter",
+			URL:        os.Getenv("HOST") + "/song/notify/instagram",
 			MinutesAgo: time.Minute * 5,
 		}
 
@@ -231,7 +243,11 @@ func RegisterNotifySongTask(videos []youtube.Video) error {
 			slog.Error(err.Error())
 			return err
 		}
-		if err := t.Create(taskInfoTwitter); err != nil {
+		//if err := t.Create(taskInfoTwitter); err != nil {
+		//	slog.Error(err.Error())
+		//	return err
+		//}
+		if err := t.Create(taskInfoInstagram); err != nil {
 			slog.Error(err.Error())
 			return err
 		}
@@ -398,5 +414,46 @@ func NotifySongOnTwitter(vid string) error {
 	if resp.StatusCode != 201 {
 		return fmt.Errorf("twitter responded with %s", resp.Status)
 	}
+	return nil
+}
+
+func NotifySongOnInstagram(vid string) error {
+	id := os.Getenv("INSTAGRAM_ID")
+	token := os.Getenv("INSTAGRAM_ACCESS_TOKEN")
+	yt, err := internal.NewYoutube(os.Getenv("YOUTUBE_API_KEY"))
+	if err != nil {
+		return err
+	}
+
+	// 動画か消されていないかチェック
+	videos, err := yt.Videos([]string{vid})
+	if err != nil {
+		return err
+	}
+	if len(videos) == 0 {
+		slog.Warn("deleted video",
+			slog.String("video_id", vid),
+		)
+		return nil
+	}
+
+	video := videos[0]
+
+	slog.Info("song-video-announce",
+		slog.String("video_id", video.Id),
+		slog.String("title", video.Snippet.Title),
+	)
+
+	insta := internal.NewInstagram(id, token)
+	err = insta.Notification(&internal.NotificationVideo{
+		ID:        vid,
+		Title:     video.Snippet.Title,
+		Thumbnail: video.Snippet.Thumbnails.Maxres.Url,
+	})
+	if err != nil {
+		slog.Error(err.Error())
+		return err
+	}
+
 	return nil
 }

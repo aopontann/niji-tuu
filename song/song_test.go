@@ -82,3 +82,11 @@ func TestSendMaybeSongVideosForDiscord(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestNotifySongOnInstagram(t *testing.T) {
+	vid := "--1kg4Kugm0"
+	err := NotifySongOnInstagram(vid)
+	if err != nil {
+		t.Error(err)
+	}
+}
