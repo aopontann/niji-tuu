@@ -12,7 +12,6 @@ import (
 
 	"github.com/aopontann/niji-tuu/internal"
 	"github.com/bwmarrin/discordgo"
-	"github.com/dghubble/oauth1"
 	"github.com/jmoiron/sqlx"
 	"google.golang.org/api/youtube/v3"
 )
@@ -222,12 +221,12 @@ func RegisterNotifySongTask(videos []youtube.Video) error {
 			URL:        os.Getenv("HOST") + "/song/notify/discord",
 			MinutesAgo: time.Hour * 1,
 		}
-		//taskInfoTwitter := &internal.TaskInfo{
-		//	Video:      v,
-		//	QueueID:    "song-queue",
-		//	URL:        os.Getenv("HOST") + "/song/notify/twitter",
-		//	MinutesAgo: time.Minute * 5,
-		//}
+		taskInfoTwitter := &internal.TaskInfo{
+			Video:      v,
+			QueueID:    "song-queue",
+			URL:        os.Getenv("HOST") + "/song/notify/twitter",
+			MinutesAgo: time.Minute * 5,
+		}
 		taskInfoInstagram := &internal.TaskInfo{
 			Video:      v,
 			QueueID:    "song-queue",
@@ -243,10 +242,10 @@ func RegisterNotifySongTask(videos []youtube.Video) error {
 			slog.Error(err.Error())
 			return err
 		}
-		//if err := t.Create(taskInfoTwitter); err != nil {
-		//	slog.Error(err.Error())
-		//	return err
-		//}
+		if err := t.Create(taskInfoTwitter); err != nil {
+			slog.Error(err.Error())
+			return err
+		}
 		if err := t.Create(taskInfoInstagram); err != nil {
 			slog.Error(err.Error())
 			return err
@@ -396,24 +395,22 @@ func NotifySongOnTwitter(vid string) error {
 		slog.String("title", video.Snippet.Title),
 	)
 
-	url := "https://api.x.com/2/tweets"
-	config := oauth1.NewConfig(os.Getenv("TWITTER_API_KEY"), os.Getenv("TWITTER_API_SECRET_KEY"))
-	token := oauth1.NewToken(os.Getenv("TWITTER_ACCESS_TOKEN"), os.Getenv("TWITTER_ACCESS_TOKEN_SECRET"))
+	t := internal.NewTwitter(
+		os.Getenv("TWITTER_API_KEY"),
+		os.Getenv("TWITTER_API_SECRET_KEY"),
+		os.Getenv("TWITTER_ACCESS_TOKEN"),
+		os.Getenv("TWITTER_ACCESS_TOKEN_SECRET"),
+	)
 
-	reqBody := fmt.Sprintf(`{"text": "%s\n\nhttps://www.youtube.com/watch?v=%s"}`, video.Snippet.Title, video.Id)
-	payload := strings.NewReader(reqBody)
-
-	httpClient := config.Client(oauth1.NoContext, token)
-
-	resp, err := httpClient.Post(url, "application/json", payload)
+	err = t.Notification(&internal.NotificationVideo{
+		ID:        video.Id,
+		Title:     video.Snippet.Title,
+		Thumbnail: video.Snippet.Thumbnails.Maxres.Url,
+	})
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 201 {
-		return fmt.Errorf("twitter responded with %s", resp.Status)
-	}
+
 	return nil
 }
 
